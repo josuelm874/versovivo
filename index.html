@@ -1715,10 +1715,6 @@
         <span class="ic">⬒</span>
         <span class="tb-lbl">Proporção</span>
       </button>
-      <button class="tb" data-tut="velocidade" onclick="openPanel('sp')">
-        <span class="ic">⏩</span>
-        <span class="tb-lbl">Velocidade</span>
-      </button>
       <button class="tb" data-tut="layout" onclick="openPanel('tp')">
         <span class="ic">▦</span>
         <span class="tb-lbl">Layout</span>
@@ -1824,25 +1820,6 @@
       <span class="ar-lbl">16:9</span>
       <span class="ar-sub">YouTube</span>
     </button>
-  </div>
-</div>
-
-<!-- ── Speed Panel ── -->
-<div class="panel" id="sp">
-  <div class="panel-drag"></div>
-  <div class="panel-head">
-    <h3>⏱ Tempo por imagem</h3>
-    <button class="panel-x" onclick="closePanels()">✕</button>
-  </div>
-  <div class="spd-row">
-    <span class="spd-val" id="spd-val">2.0s</span>
-    <input class="spd-slider" type="range" id="spd-range"
-           min="1" max="100" value="20"
-           oninput="onSpeedChange(this.value)">
-  </div>
-  <div class="spd-labels">
-    <span>0.1s — Muito Rápido</span>
-    <span>10s — Muito Lento</span>
   </div>
 </div>
 
@@ -2336,8 +2313,6 @@ function applyProjectMeta(meta) {
     TBOX2.fontSize = meta.tbox2.fontSize ?? 0;
   }
   syncAspectUI();
-  document.getElementById('spd-range').value = Math.round(S.speed * 10);
-  document.getElementById('spd-val').textContent = S.speed.toFixed(1) + 's';
   const durRange = document.getElementById('tl-img-duration');
   const durVal = document.getElementById('tl-img-duration-val');
   if (durRange) durRange.value = String(S.duration);
@@ -3305,7 +3280,6 @@ function syncImagesTimelineUI() {
   const range = document.getElementById('tl-img-speed');
   const durVal = document.getElementById('tl-img-duration-val');
   const durRange = document.getElementById('tl-img-duration');
-  const panelVal = document.getElementById('spd-val');
   const n = S.imgs.length;
 
   if (totalEl) {
@@ -3317,9 +3291,6 @@ function syncImagesTimelineUI() {
   if (durRange) durRange.value = String(durSec);
   if (valEl) valEl.textContent = S.speed.toFixed(1) + 's';
   if (range) range.value = String(Math.round(S.speed * 10));
-  if (panelVal) panelVal.textContent = S.speed.toFixed(1) + 's';
-  const panelRange = document.querySelector('#sp input[type=range]');
-  if (panelRange) panelRange.value = String(Math.round(S.speed * 10));
 
   document.querySelectorAll('#tl-img-track .tl-slide-dur').forEach(el => {
     el.textContent = S.speed.toFixed(1).replace('.0', '') + 's';
@@ -5206,45 +5177,39 @@ const TUTORIAL_STEPS = [
   },
   {
     screen: 'editor',
-    target: '[data-tut="velocidade"]',
-    title: '9 · Velocidade das fotos',
-    text: '«Velocidade» controla quantos segundos cada foto fica visível. Mais lento = tempo para ler o poema com calma.',
-  },
-  {
-    screen: 'editor',
     target: '[data-tut="layout"]',
-    title: '10 · Modelos prontos',
+    title: '9 · Modelos prontos',
     text: '«Layout» traz combinações de texto já posicionadas — verso central, haiku no rodapé, título + poema, e outros.',
   },
   {
     screen: 'editor',
     target: '[data-tut="texto"]',
-    title: '11 · Escrever o poema',
+    title: '10 · Escrever o poema',
     text: 'Toque em «Texto» para abrir as opções. Crie o verso e, se quiser, um título. Clique na caixa para digitar; arraste os cantos para redimensionar.',
   },
   {
     screen: 'editor',
     target: '[data-tut="musica"]',
-    title: '12 · Música de fundo',
+    title: '11 · Música de fundo',
     text: '«Música» é opcional. Escolha um áudio do seu aparelho para tocar junto com o vídeo.',
   },
   {
     screen: 'editor',
     target: '[data-tut="baixar"]',
-    title: '13 · Baixar o vídeo',
+    title: '12 · Baixar o vídeo',
     text: 'Pronto? Toque em «Baixar Vídeo». O app monta o arquivo e salva no seu celular ou computador. Precisa ter pelo menos uma foto ou vídeo de fundo.',
   },
   {
     screen: 'editor',
     target: '[data-tut="compartilhar"]',
     skipIf: () => document.getElementById('share-btn').classList.contains('hidden'),
-    title: '14 · Compartilhar direto',
+    title: '13 · Compartilhar direto',
     text: 'Em aparelhos compatíveis, «Compartilhar» envia o vídeo pronto para WhatsApp, Instagram ou outro app, sem passar pela galeria.',
   },
   {
     screen: 'editor',
     target: '[data-tut="inicio"]',
-    title: '15 · Voltar ao início',
+    title: '14 · Voltar ao início',
     text: '«← Início» traz você de volta a esta tela. Seu rascunho continua salvo automaticamente.',
   },
   {
