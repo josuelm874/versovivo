@@ -1,4 +1,4 @@
-const CACHE = 'versovivo-v11';
+const CACHE = 'versovivo-v12';
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/icon.svg',

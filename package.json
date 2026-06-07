@@ -3,7 +3,7 @@
   "private": true,
   "description": "Editor visual de vídeos poéticos",
   "scripts": {
-    "test": "node tests/smoke.mjs",
+    "test": "node tests/smoke.mjs && node tests/enhance.test.mjs",
     "test:e2e": "playwright test",
     "icons": "node scripts/generate-icons.mjs",
     "tutorial-assets": "node scripts/generate-tutorial-assets.mjs",

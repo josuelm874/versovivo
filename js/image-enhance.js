@@ -171,6 +171,7 @@
   global.VVEnhance = {
     MAX_LONG_SIDE,
     computeEnhanceTarget,
+    applyFrameSharpen: applySharpen,
     enhancePhotoEntry,
     enhanceBatch,
   };

@@ -16,6 +16,7 @@ test('tela inicial exibe marca VersoVivo', async ({ page }) => {
 test('botão de tutorial está presente', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#home-help')).toBeVisible();
+  await expect(page.locator('#home-settings')).toBeVisible();
 });
 
 test('continuar projeto aparece quando há save', async ({ page }) => {

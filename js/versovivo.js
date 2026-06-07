@@ -130,6 +130,7 @@ const S = {
   audioEnabled: false,
   aspectKey: '9:16',
   enhancePhotos: true,
+  enhanceVideos: true,
   text2: '',
   titleFont: 'Cinzel',
   titleBold: true,
@@ -309,6 +310,7 @@ function getProjectMeta() {
     audioName: _audioFileName || null,
     aspectKey: S.aspectKey || '9:16',
     enhancePhotos: S.enhancePhotos !== false,
+    enhanceVideos: S.enhanceVideos !== false,
     text2: S.text2,
     titleFont: S.titleFont,
     titleBold: S.titleBold,
@@ -362,6 +364,7 @@ function applyProjectMeta(meta) {
   S.audioEnabled = !!meta.audioEnabled;
   S.aspectKey = meta.aspectKey || '9:16';
   S.enhancePhotos = meta.enhancePhotos !== false;
+  S.enhanceVideos = meta.enhanceVideos !== false;
   S.text2 = meta.text2 ?? '';
   S.titleFont = meta.titleFont ?? 'Cinzel';
   S.titleBold = meta.titleBold !== undefined ? !!meta.titleBold : true;
@@ -710,18 +713,82 @@ function syncAspectUI() {
   });
 }
 
-function syncEnhanceUI() {
-  const cb = document.getElementById('tl-enhance');
-  if (cb) cb.checked = S.enhancePhotos !== false;
+const APP_SETTINGS_KEY = 'versovivo-settings';
+
+function defaultAppSettings() {
+  return { enhancePhotos: true, enhanceVideos: true };
 }
 
-function toggleEnhancePhotos(on) {
-  S.enhancePhotos = !!on;
-  syncEnhanceUI();
+function loadAppSettings() {
+  try {
+    const raw = localStorage.getItem(APP_SETTINGS_KEY);
+    const s = raw ? { ...defaultAppSettings(), ...JSON.parse(raw) } : defaultAppSettings();
+    S.enhancePhotos = s.enhancePhotos !== false;
+    S.enhanceVideos = s.enhanceVideos !== false;
+  } catch (_) {
+    const d = defaultAppSettings();
+    S.enhancePhotos = d.enhancePhotos;
+    S.enhanceVideos = d.enhanceVideos;
+  }
+}
+
+function saveAppSettings() {
+  try {
+    localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify({
+      enhancePhotos: S.enhancePhotos !== false,
+      enhanceVideos: S.enhanceVideos !== false,
+    }));
+  } catch (_) { /* quota */ }
+}
+
+function syncSettingsUI() {
+  const p = document.getElementById('settings-enhance-photos');
+  const v = document.getElementById('settings-enhance-videos');
+  if (p) p.checked = S.enhancePhotos !== false;
+  if (v) v.checked = S.enhanceVideos !== false;
+}
+
+function openSettings() {
+  syncSettingsUI();
+  const el = document.getElementById('settings');
+  if (!el) return;
+  el.classList.remove('hidden');
+  el.classList.add('on');
+  el.setAttribute('aria-hidden', 'false');
+}
+
+function closeSettings() {
+  const el = document.getElementById('settings');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.classList.remove('on');
+  el.setAttribute('aria-hidden', 'true');
+}
+
+function onSettingsEnhanceChange() {
+  const pEl = document.getElementById('settings-enhance-photos');
+  const vEl = document.getElementById('settings-enhance-videos');
+  S.enhancePhotos = pEl ? pEl.checked : true;
+  S.enhanceVideos = vEl ? vEl.checked : true;
+  saveAppSettings();
   markDirty();
   if (S.enhancePhotos && S.mode === 'images' && S.imgs.length) {
     reEnhanceAllImages().catch(console.error);
   }
+}
+
+function maybeSharpenVideoFrame(tctx, w, h, src) {
+  if (!S.enhanceVideos || !globalThis.VVEnhance?.applyFrameSharpen || !src) return;
+  const sw = src.videoWidth || 0;
+  const sh = src.videoHeight || 0;
+  if (!sw || !sh) return;
+  const { rw, rh } = getExportSize();
+  if (!VVEnhance.computeEnhanceTarget(sw, sh, rw, rh)) return;
+  VVEnhance.applyFrameSharpen(tctx, w, h, 0.42);
+}
+
+function syncEnhanceUI() {
+  syncSettingsUI();
 }
 
 function showEnhanceProgress(msg, pct) {
@@ -757,12 +824,6 @@ async function enhancePairedImages(paired) {
     }
   );
   hideEnhanceProgress();
-  const hint = document.getElementById('tl-enhance-hint');
-  if (hint) {
-    hint.textContent = enhancedCount
-      ? `${enhancedCount} foto(s) otimizadas para ${rw}×${rh}`
-      : 'Fotos já tinham resolução adequada';
-  }
   return entries;
 }
 
@@ -831,7 +892,7 @@ function resetEditorState() {
   S.textShadow = false; S.textStroke = false; S.boxBgOpacity = 0;
   S.layoutId = '';
   S.aspectKey = '9:16';
-  S.enhancePhotos = true;
+  loadAppSettings();
   S.text2 = '';
   S.titleFont = 'Cinzel';
   S.titleBold = true;
@@ -2323,6 +2384,7 @@ function drawMedia(tctx, w, h, opts = {}) {
 
   if (S.mode === 'video' && S.videoEl && S.videoReady) {
     drawMediaSource(tctx, w, h, S.videoEl);
+    maybeSharpenVideoFrame(tctx, w, h, S.videoEl);
   }
 }
 
@@ -3585,213 +3647,361 @@ const TUTORIAL_STEPS = [
     screen: 'home',
     target: null,
     title: 'Bem-vindo ao VersoVivo',
-    text: 'Este tour passa por todas as funções do app — da tela inicial ao export final. Você pode pular a qualquer momento com «Pular tutorial» ou tecla Esc.',
+    text: 'Este tour passa por todas as funções do editor — da tela inicial ao export final. Pule a qualquer momento com «Pular tutorial» ou tecla Esc.',
+  },
+  {
+    screen: 'home',
+    target: '#home-settings',
+    title: '1 · Configurações',
+    text: 'O botão ⚙ abre preferências globais. É o lugar certo para definir qualidade de imagens e vídeos antes de começar.',
+  },
+  {
+    screen: 'home',
+    target: '[data-tut="enhance-imagens"]',
+    prepare: () => openSettings(),
+    title: '2 · Melhorar imagens (padrão ligado)',
+    text: 'Marcado por padrão: upscale local + nitidez quando a foto é menor que a resolução de export Full HD — sem site externo.',
+  },
+  {
+    screen: 'home',
+    target: '[data-tut="enhance-videos"]',
+    prepare: () => openSettings(),
+    title: '3 · Melhorar vídeos (padrão ligado)',
+    text: 'Também ligado por padrão: aplica nitidez adaptativa em clipes com resolução abaixo do export. Ideal para vídeos de celular em 720p.',
   },
   {
     screen: 'home',
     target: '.new-proj',
-    title: '1 · Novo projeto',
+    prepare: () => closeSettings(),
+    title: '4 · Novo projeto',
     text: '«Novo Projeto +» abre o editor vazio. Se já existir rascunho salvo, o app pergunta antes de apagar.',
   },
   {
     screen: 'home',
     target: '#resume-proj',
     skipIf: () => !document.getElementById('resume-proj').classList.contains('on'),
-    title: '2 · Continuar rascunho',
+    title: '5 · Continuar rascunho',
     text: '«Continuar projeto» restaura fotos, textos, layout e música do último save automático (IndexedDB + backup local).',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="dica-canvas"]',
+    skipIf: () => S.mode !== 'none' || S.imgs.length > 0,
+    title: '5 · Canvas vazio',
+    text: 'Sem mídia, esta dica lembra de importar imagens ou vídeo. Ela some assim que você adiciona conteúdo.',
   },
   {
     screen: 'editor',
     target: '[data-tut="preview"]',
     prepare: () => loadTutorialDemoAssets(),
-    title: '3 · Prévia ao vivo',
-    text: 'Carregamos 3 imagens de exemplo da pasta assets/tutorial/ para você ver o slideshow funcionando. A prévia é WYSIWYG — igual ao vídeo exportado.',
+    title: '6 · Prévia ao vivo',
+    text: 'Carregamos 3 imagens de exemplo de assets/tutorial/ para você ver o slideshow. A prévia é WYSIWYG — igual ao vídeo exportado.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="contador-imagens"]',
+    skipIf: () => S.mode !== 'images' || !S.imgs.length,
+    title: '7 · Contador de fotos',
+    text: 'No topo, o contador mostra quantas imagens compõem o slideshow — útil em projetos longos.',
   },
   {
     screen: 'editor',
     target: '[data-tut="imagens"]',
-    title: '4 · Importar fotos',
+    title: '8 · Importar fotos',
     text: '«Imagens» abre o seletor do sistema. Escolha uma ou várias fotos JPG/PNG/WebP. Elas substituem o vídeo se houver um carregado.',
   },
   {
     screen: 'editor',
     target: '[data-tut="video"]',
-    title: '5 · Importar vídeo',
+    title: '9 · Importar vídeo',
     text: '«Vídeo» usa um clipe como fundo em loop. O poema fica por cima. Trocar para fotos apaga o vídeo (e vice-versa).',
   },
   {
     screen: 'editor',
     target: '[data-tut="timeline"]',
     card: 'bottom',
-    title: '6 · Linha do tempo (fotos)',
-    text: 'Miniaturas mostram a ordem do slideshow. Arraste para reordenar; solte entre clips para inserir. «+» adiciona mais fotos; «Apagar» remove todas.',
+    title: '10 · Linha do tempo (fotos)',
+    text: 'Miniaturas mostram a ordem do slideshow. Arraste para reordenar; solte entre clips para inserir.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="adicionar-imagens"]',
+    card: 'bottom',
+    skipIf: () => S.mode !== 'images',
+    title: '11 · Adicionar mais fotos',
+    text: 'O botão «+» abre o seletor de arquivos e acrescenta novas imagens ao final da sequência (sem apagar as existentes).',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="apagar-imagens"]',
+    card: 'bottom',
+    skipIf: () => S.mode !== 'images',
+    title: '12 · Apagar todas as fotos',
+    text: '«Apagar» remove todas as imagens da timeline de uma vez. O app pede confirmação antes de executar.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="timeline-video"]',
+    card: 'bottom',
+    skipIf: () => S.mode !== 'video',
+    title: '13 · Linha do tempo (vídeo)',
+    text: 'Com vídeo importado, a timeline NLE mostra o clipe, régua de tempo e playhead — espelho da duração do arquivo.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="apagar-video"]',
+    card: 'bottom',
+    skipIf: () => S.mode !== 'video',
+    title: '14 · Apagar vídeo',
+    text: 'Remove o clipe importado e volta ao canvas vazio. Confirme apenas se quiser descartar o vídeo.',
   },
   {
     screen: 'editor',
     target: '[data-tut="duracao"]',
     card: 'bottom',
-    title: '7 · Duração total',
-    text: 'Este controle define quantos segundos dura o vídeo exportado (5–120 s). A barra de progresso embaixo segue essa duração.',
-  },
-  {
-    screen: 'editor',
-    target: '[data-tut="enhance-fotos"]',
-    card: 'bottom',
-    title: '8b · Melhorar fotos automaticamente',
-    text: 'Ativado por padrão: o app amplia fotos pequenas e aplica nitidez localmente — sem site externo. Ideal quando a câmera do celular não gera 1080p. Ao mudar a proporção, as fotos são reotimizadas.',
+    skipIf: () => S.mode !== 'images',
+    title: '15 · Duração total',
+    text: 'Define quantos segundos dura o vídeo exportado (5–120 s). A barra de progresso embaixo segue essa duração.',
   },
   {
     screen: 'editor',
     target: '[data-tut="velocidade-img"]',
     card: 'bottom',
-    title: '8 · Tempo por imagem',
-    text: 'Quanto tempo cada foto fica na tela antes do crossfade. Valores menores = slideshow mais rápido; o fade entre fotos ajusta proporcionalmente.',
+    skipIf: () => S.mode !== 'images',
+    title: '16 · Tempo por imagem',
+    text: 'Quanto tempo cada foto fica na tela antes do crossfade. Valores menores = slideshow mais rápido.',
   },
   {
     screen: 'editor',
     target: '#tl-img-progress',
     card: 'bottom',
     skipIf: () => S.mode !== 'images' || !S.imgs.length,
-    title: '9 · Navegar no tempo',
+    title: '17 · Navegar no tempo',
     text: 'Arraste a barra de progresso para ir a qualquer ponto do vídeo. Útil para conferir um verso numa foto específica.',
   },
   {
     screen: 'editor',
     target: '[data-tut="play"]',
-    title: '10 · Play / Pausa',
+    title: '18 · Play / Pausa',
     text: 'Assista ao slideshow antes de exportar. Pausar congela a prévia; retomar continua de onde parou.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="editar-caixa"]',
+    prepare: () => { createOrEditTextBox(); },
+    title: '19 · Editar no canvas',
+    text: 'Toque na caixa branca sobre a imagem para digitar. Arraste para mover; use as alças nos cantos e bordas para redimensionar.',
   },
   {
     screen: 'editor',
     target: '[data-tut="proporcao"]',
     prepare: () => openPanel('ar'),
-    title: '11 · Proporção do vídeo',
+    title: '20 · Proporção do vídeo',
     text: 'Escolha 9:16 (Reels/Shorts), 1:1 (feed quadrado) ou 16:9 (YouTube). O canvas redimensiona na hora.',
   },
   {
     screen: 'editor',
     target: '#ar',
-    title: '12 · Formatos disponíveis',
+    title: '21 · Formatos disponíveis',
     text: 'Cada botão muda a resolução de export em Full HD: 1080×1920, 1080×1080 ou 1920×1080. Feche o painel tocando fora ou no ✕.',
   },
   {
     screen: 'editor',
     target: '[data-tut="layout"]',
     prepare: () => { closePanels(); openPanel('tp'); },
-    title: '13 · Modelos de layout',
+    title: '22 · Modelos de layout',
     text: 'Templates posicionam verso, título e assinatura de uma vez — haiku, citação lateral, título+verso, etc.',
   },
   {
     screen: 'editor',
     target: '#tp',
-    title: '14 · Aplicar template',
+    title: '23 · Aplicar template',
     text: 'Toque num modelo para aplicar fonte, cor, posição e legibilidade sugeridas. Você pode ajustar tudo depois.',
   },
   {
     screen: 'editor',
     target: '[data-tut="texto"]',
     prepare: () => closePanels(),
-    title: '15 · Menu Texto',
-    text: '«Texto» expande a barra com Verso, Título, Assinatura e estilos. Toque numa caixa no canvas para editar; arraste cantos para redimensionar.',
+    title: '24 · Menu Texto',
+    text: '«Texto» expande a barra com Verso, Título, Assinatura e estilos. Toque numa caixa no canvas para editar.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="menu-texto"]',
+    prepare: () => { document.getElementById('sub-tb')?.classList.add('on'); document.getElementById('text-tb')?.classList.add('on'); },
+    title: '25 · Barra de texto expandida',
+    text: 'A faixa à direita de «Texto» concentra Verso, Título, Assinatura, fontes, tamanho, formato, alinhamento, cor e legibilidade.',
   },
   {
     screen: 'editor',
     target: '[data-tut="verso"]',
-    title: '16 · Caixa Verso',
+    title: '26 · Caixa Verso',
     text: 'Poema principal. Clique na caixa branca sobre a imagem ou use este botão para criar/editar. Enter quebra linha.',
   },
   {
     screen: 'editor',
     target: '[data-tut="titulo"]',
-    title: '17 · Caixa Título',
+    title: '27 · Caixa Título',
     text: 'Nome do poema, autor ou epígrafe. Estilo independente do verso (fonte, cor, alinhamento).',
   },
   {
     screen: 'editor',
     target: '[data-tut="assinatura"]',
-    title: '18 · Caixa Assinatura (@)',
+    title: '28 · Caixa Assinatura (@)',
     text: 'Seu @ do Instagram ou handle. Por padrão fica discreta no rodapé — ideal para crédito do autor.',
   },
   {
     screen: 'editor',
     target: '[data-tut="fontes"]',
     prepare: () => openPanel('fp'),
-    title: '19 · Fontes',
+    title: '29 · Fontes',
     text: 'Mais de 40 fontes Google — serifadas para poesia clássica, script para assinaturas manuscritas. Aplica na caixa selecionada.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="pesquisa-fonte"]',
+    title: '30 · Pesquisar fonte',
+    text: 'Digite parte do nome para filtrar a lista — útil quando há muitas opções no grid.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="grade-fontes"]',
+    title: '31 · Grade de fontes',
+    text: 'Toque numa amostra para aplicar à caixa ativa (Verso, Título ou Assinatura). O indicador no topo do painel mostra qual caixa está selecionada.',
   },
   {
     screen: 'editor',
     target: '[data-tut="tamanho"]',
     prepare: () => openPanel('ts'),
-    title: '20 · Tamanho da fonte',
-    text: 'Modo Automático encolhe o texto para caber na caixa. Manual libera A− / A+ para controle fino.',
+    title: '32 · Tamanho da fonte',
+    text: 'Abre o painel de tamanho. Modo Automático encolhe o texto para caber na caixa; Manual libera controle fino.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="tamanho-detalhes"]',
+    title: '33 · Auto vs Manual + slider',
+    text: '«Automático» ajusta ao redimensionar a caixa. «Manual» habilita o slider e os botões A− / A+ para pixels exatos.',
   },
   {
     screen: 'editor',
     target: '[data-tut="formato"]',
     prepare: () => openPanel('fmt'),
-    title: '21 · Formatação',
+    title: '34 · Formatação',
     text: 'Negrito, itálico, sublinhado e tachado — por caixa de texto. O preview e o export usam o mesmo estilo.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="formato-detalhes"]',
+    title: '35 · Estilos individuais',
+    text: 'Cada botão alterna um estilo: N (negrito), I (itálico), S (sublinhado), T (tachado). Combine à vontade.',
   },
   {
     screen: 'editor',
     target: '[data-tut="alinhamento"]',
     prepare: () => closePanels(),
-    title: '22 · Alinhamento',
+    title: '36 · Alinhamento',
     text: 'Alterna esquerda, centro e direita dentro da caixa selecionada. O ícone muda a cada toque.',
   },
   {
     screen: 'editor',
     target: '[data-tut="cores"]',
     prepare: () => openPanel('cp'),
-    title: '23 · Cor do texto',
+    title: '37 · Cor do texto',
     text: 'Paleta rápida + seletor personalizado. Escolha contraste com o fundo — combine com «Legibilidade» se precisar.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="paleta-cores"]',
+    title: '38 · Paleta rápida',
+    text: 'Toque numa cor predefinida para aplicar instantaneamente à caixa ativa.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="cor-personalizada"]',
+    title: '39 · Cor personalizada',
+    text: 'Use o seletor nativo do sistema para qualquer tom — ideal para combinar com a identidade visual do seu perfil.',
   },
   {
     screen: 'editor',
     target: '[data-tut="legibilidade"]',
     prepare: () => openPanel('lp'),
-    title: '24 · Legibilidade',
-    text: 'Sombra, contorno e fundo semitransparente ajudam a ler sobre fotos claras ou escuras. Presets «Foto clara» / «Foto escura».',
+    title: '40 · Legibilidade',
+    text: 'Sombra, contorno e fundo semitransparente ajudam a ler sobre fotos claras ou escuras.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="leg-presets"]',
+    title: '41 · Presets de legibilidade',
+    text: '«Foto clara», «Foto escura» ou «Limpar» aplicam combinações sugeridas de sombra, contorno e fundo.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="leg-sombra"]',
+    title: '42 · Sombra no texto',
+    text: 'Ativa sombra suave atrás das letras — melhora leitura sobre fundos claros ou com textura.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="leg-contorno"]',
+    title: '43 · Contorno no texto',
+    text: 'Desenha borda ao redor dos glifos — excelente sobre fotos muito claras ou com alto contraste.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="leg-fundo"]',
+    title: '44 · Fundo da caixa',
+    text: 'Slider de 0–80% adiciona retângulo semitransparente atrás do texto, como uma placa escura.',
   },
   {
     screen: 'editor',
     target: '[data-tut="musica"]',
     prepare: () => openPanel('ap'),
-    title: '25 · Música de fundo',
+    title: '45 · Música de fundo',
     text: 'Opcional. Escolha um áudio do aparelho; ajuste volume e ative/desative. Entra mixada no vídeo exportado.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="musica-arquivo"]',
+    title: '46 · Escolher / remover áudio',
+    text: '«Escolher arquivo» importa MP3/WAV etc.; «Remover» limpa a trilha. O nome do arquivo aparece abaixo.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="musica-volume"]',
+    title: '47 · Volume da música',
+    text: 'Controla o mix no export (0–100%). A trilha repete em loop se for mais curta que o slideshow.',
   },
   {
     screen: 'editor',
     target: '[data-tut="salvar"]',
     prepare: () => closePanels(),
-    title: '26 · Salvamento automático',
+    title: '48 · Salvamento automático',
     text: '«Salvo» / «Salvando…» indica persistência. Projetos vão ao IndexedDB primeiro; localStorage é backup leve de metadados.',
   },
   {
     screen: 'editor',
     target: '[data-tut="baixar"]',
-    title: '27 · Baixar vídeo',
-    text: 'Gera MP4 (ou WebM se o navegador não suportar H.264). Export em Full HD @ 30 fps com bitrate adaptativo (~20 Mbps). Use fotos nítidas — quanto maior a origem, melhor o resultado.',
+    title: '49 · Baixar vídeo',
+    text: 'Gera MP4 (ou WebM se o navegador não suportar H.264). Export em Full HD @ 30 fps com bitrate adaptativo. Com «Melhorar qualidade» ligado, fotos e vídeos baixos são otimizados.',
   },
   {
     screen: 'editor',
     target: '[data-tut="compartilhar"]',
     skipIf: () => document.getElementById('share-btn').classList.contains('hidden'),
-    title: '28 · Compartilhar',
+    title: '50 · Compartilhar',
     text: 'Em mobile/browsers compatíveis, envia direto para WhatsApp, Instagram etc. via Web Share API — sem salvar na galeria antes.',
   },
   {
     screen: 'editor',
     target: '[data-tut="inicio"]',
-    title: '29 · Voltar ao início',
+    title: '51 · Voltar ao início',
     text: '«← Início» salva o rascunho e volta à home. Se houver conteúdo, o app confirma antes de sair.',
   },
   {
     screen: 'home',
-    target: '#home-help',
-    title: '30 · Rever o tutorial',
-    text: 'Pronto! Toque no «?» quando quiser rever este guia. Substitua assets/tutorial/demo-*.jpg pelos seus arquivos para um demo personalizado.',
+    target: '#home-settings',
+    title: '52 · Configurações e tutorial',
+    text: 'Pronto! Use ⚙ para qualidade de mídia e «?» para rever este guia. Substitua assets/tutorial/demo-*.jpg pelos seus arquivos para um demo personalizado.',
   },
 ];
 
@@ -3838,6 +4048,7 @@ function openEditorForTutorial() {
 function showHomeForTutorial() {
   if (_rafId !== null) { cancelAnimationFrame(_rafId); _rafId = null; }
   closePanels();
+  closeSettings();
   if (typeof exitAnyEditMode === 'function' && (TBOX.editing || TBOX2.editing || TBOX3.editing)) exitAnyEditMode();
   document.getElementById('sub-tb')?.classList.remove('on');
   document.getElementById('text-tb')?.classList.remove('on');
@@ -3905,6 +4116,7 @@ async function renderTutorialStep() {
   if (!step) return;
 
   closePanels();
+  closeSettings();
   if (step.screen === 'home') showHomeForTutorial();
   else openEditorForTutorial();
 
@@ -3990,4 +4202,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); tutorialNext(); return; }
   if (e.key === 'ArrowLeft') { e.preventDefault(); tutorialPrev(); }
 });
+
+loadAppSettings();
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8B5CF6">
   <meta name="description" content="Editor visual de vídeos poéticos — combine imagens, poemas e exporte como vídeo.">
-  <meta name="vv-build" content="20260606-11">
+  <meta name="vv-build" content="20260606-12">
   <script>
     /* Remove controles legados de «Velocidade» (migrados para a timeline). */
     (function removeLegacySpeedUI() {
@@ -162,6 +162,87 @@
       background: rgba(139, 92, 246, 0.15);
       transform: scale(1.06);
     }
+    .home-settings { right: 3.25rem; font-size: 0.88rem; }
+
+    /* Configurações (home) */
+    .settings {
+      position: fixed;
+      inset: 0;
+      z-index: 10040;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .settings.on { display: flex; }
+    .settings.hidden { display: none; }
+    .settings-dim {
+      position: absolute;
+      inset: 0;
+      background: rgba(4, 4, 12, 0.78);
+    }
+    .settings-card {
+      position: relative;
+      width: min(420px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.35rem 1.25rem 1.1rem;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+    }
+    .settings-card h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+    .settings-lead {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+    .settings-group h3 {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.65rem;
+    }
+    .settings-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 0.25rem;
+    }
+    .settings-check input {
+      accent-color: var(--primary);
+      width: 1rem;
+      height: 1rem;
+      margin-top: 0.15rem;
+      flex-shrink: 0;
+    }
+    .settings-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.45;
+      margin: 0 0 0.85rem 1.55rem;
+    }
+    .settings-close {
+      margin-top: 0.5rem;
+      width: 100%;
+      padding: 0.55rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(139, 92, 246, 0.12);
+      color: #C4B5FD;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .settings-close:hover { border-color: var(--primary); }
 
     /* Tutorial guiado */
     .tut {
@@ -1703,6 +1784,8 @@
 
 <!-- ────────────── HOME ────────────── -->
 <div id="home">
+  <button type="button" class="home-help home-settings" id="home-settings" data-tut="configuracoes-btn"
+          onclick="openSettings()" title="Configurações" aria-label="Abrir configurações">⚙</button>
   <button type="button" class="home-help" id="home-help" onclick="startTutorial()"
           title="Tutorial — aprenda a usar o app" aria-label="Abrir tutorial">?</button>
   <div class="home-brand">VersoVivo</div>
@@ -1729,7 +1812,7 @@
   <div class="topbar">
     <div class="topbar-left">
       <span class="topbar-brand">VersoVivo</span>
-      <span class="img-count" id="img-count"></span>
+      <span class="img-count" id="img-count" data-tut="contador-imagens"></span>
     </div>
     <div class="topbar-actions">
       <span class="save-hint" id="save-hint" data-tut="salvar">Salvo</span>
@@ -1746,7 +1829,7 @@
 
       <!-- HTML overlay for text box interaction -->
       <div id="cv-overlay">
-        <div id="text-box" class="text-box">
+        <div id="text-box" class="text-box" data-tut="editar-caixa">
           <textarea id="tb-edit" spellcheck="false" autocomplete="off"
                     placeholder="Digite o verso..."></textarea>
           <div id="tb-size-tip"></div>
@@ -1788,7 +1871,7 @@
       </div>
     </div>
 
-    <div class="cv-hint" id="cv-hint">
+    <div class="cv-hint" id="cv-hint" data-tut="dica-canvas">
       <div class="cv-hint-icon">🎬</div>
       <div class="cv-hint-text">
         Clique em <em>"Imagens"</em> para múltiplas fotos<br>
@@ -1804,9 +1887,10 @@
         <span class="tl-img-title">Ordem das imagens</span>
         <span class="tl-img-total" id="tl-img-total">Total: 0:00</span>
         <div class="tl-head-actions">
-          <button type="button" class="tl-clear" id="tl-img-clear" title="Apagar todas as imagens"
-                  onclick="clearAllImages()">Apagar</button>
-          <button type="button" class="tl-add" id="tl-img-add" title="Adicionar imagens" onclick="pickImagesAppend()">+</button>
+          <button type="button" class="tl-clear" id="tl-img-clear" data-tut="apagar-imagens"
+                  title="Apagar todas as imagens" onclick="clearAllImages()">Apagar</button>
+          <button type="button" class="tl-add" id="tl-img-add" data-tut="adicionar-imagens"
+                  title="Adicionar imagens" onclick="pickImagesAppend()">+</button>
         </div>
       </div>
       <div class="tl-img-track-wrap">
@@ -1828,13 +1912,6 @@
                oninput="onProjectDurationChange(this.value)">
         <span class="tl-img-dur-val" id="tl-img-duration-val">20s</span>
       </div>
-      <div class="tl-img-dur tl-img-dur-sub" data-tut="enhance-fotos">
-        <label class="tl-enhance-lbl" for="tl-enhance">
-          <input type="checkbox" id="tl-enhance" checked onchange="toggleEnhancePhotos(this.checked)">
-          Melhorar fotos automaticamente
-        </label>
-        <span class="tl-enhance-hint" id="tl-enhance-hint">Upscale local para export nítido</span>
-      </div>
       <div class="tl-img-dur tl-img-dur-sub" data-tut="velocidade-img">
         <label for="tl-img-speed">Tempo por imagem</label>
         <input type="range" id="tl-img-speed" min="1" max="100" value="20"
@@ -1842,12 +1919,12 @@
         <span class="tl-img-dur-val" id="tl-img-speed-val">2.0s</span>
       </div>
     </div>
-    <div class="tl-nle hidden" id="tl-nle">
+    <div class="tl-nle hidden" id="tl-nle" data-tut="timeline-video">
       <div class="tl-vid-head">
         <span class="tl-img-title">Vídeo importado</span>
         <span class="tl-vid-name" id="tl-vid-name"></span>
-        <button type="button" class="tl-clear" id="tl-vid-clear" title="Apagar vídeo"
-                onclick="clearUploadedVideo()">Apagar</button>
+        <button type="button" class="tl-clear" id="tl-vid-clear" data-tut="apagar-video"
+                title="Apagar vídeo" onclick="clearUploadedVideo()">Apagar</button>
       </div>
       <div class="tl-nle-body">
       <div class="tl-sidebar" id="tl-sidebar">
@@ -1914,7 +1991,7 @@
       </button>
 
       <!-- Expande à direita de Texto (design original, faixa única no desktop) -->
-      <div id="sub-tb" aria-label="Opções de texto">
+      <div id="sub-tb" aria-label="Opções de texto" data-tut="menu-texto">
         <span class="text-target-hint" id="text-target-hint" aria-live="polite">Verso</span>
         <button class="tb" data-tut="verso" onclick="createOrEditTextBox()">
           <span class="ic">✎</span>
@@ -1964,6 +2041,29 @@
        onchange="loadVideo(this.files[0])">
 <input id="audio-input" type="file" accept="audio/*" style="display:none"
        onchange="loadAudio(this.files[0])">
+
+<!-- Configurações globais -->
+<div id="settings" class="settings hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title" aria-hidden="true">
+  <div class="settings-dim" onclick="closeSettings()"></div>
+  <div class="settings-card" data-tut="configuracoes">
+    <h2 id="settings-title">⚙ Configurações</h2>
+    <p class="settings-lead">Preferências globais do VersoVivo. Aplicam-se a novos imports e projetos.</p>
+    <div class="settings-group">
+      <h3>Qualidade de mídia</h3>
+      <label class="settings-check" data-tut="enhance-imagens">
+        <input type="checkbox" id="settings-enhance-photos" checked onchange="onSettingsEnhanceChange()">
+        Melhorar qualidade das imagens
+      </label>
+      <p class="settings-hint">Upscale local + nitidez quando a foto é menor que a resolução de export (Full HD).</p>
+      <label class="settings-check" data-tut="enhance-videos">
+        <input type="checkbox" id="settings-enhance-videos" checked onchange="onSettingsEnhanceChange()">
+        Melhorar qualidade dos vídeos
+      </label>
+      <p class="settings-hint">Nitidez adaptativa em clipes com resolução abaixo do export.</p>
+    </div>
+    <button type="button" class="settings-close" onclick="closeSettings()">Fechar</button>
+  </div>
+</div>
 
 <!-- Tutorial guiado -->
 <div id="tutorial" class="tut hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="tut-title">
@@ -2022,11 +2122,11 @@
     </div>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
-  <input class="font-search" type="text" id="font-search"
+  <input class="font-search" type="text" id="font-search" data-tut="pesquisa-fonte"
          placeholder="Pesquisar fonte..."
          oninput="filterFonts(this.value)"
          autocomplete="off">
-  <div class="font-grid" id="font-grid"></div>
+  <div class="font-grid" id="font-grid" data-tut="grade-fontes"></div>
 </div>
 
 <!-- ── Text Size Panel ── -->
@@ -2039,7 +2139,7 @@
     </div>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
-  <div class="fs-mode-row">
+  <div class="fs-mode-row" data-tut="tamanho-detalhes">
     <button type="button" class="fs-mode-btn on" id="fs-mode-auto" onclick="setTextFontSizeAuto()">Automático</button>
     <button type="button" class="fs-mode-btn" id="fs-mode-manual" onclick="enableTextFontSizeManual()">Manual</button>
   </div>
@@ -2068,7 +2168,7 @@
     </div>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
-  <div class="fmt-grid">
+  <div class="fmt-grid" data-tut="formato-detalhes">
     <button class="fmt-btn" id="fmt-bold"   onclick="toggleFmt('bold')">
       <strong>N</strong>&ensp;Negrito
     </button>
@@ -2102,7 +2202,7 @@
     <h3>♫ Música de Fundo</h3>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
-  <div class="aud-btn-row">
+  <div class="aud-btn-row" data-tut="musica-arquivo">
     <button class="aud-btn" onclick="pickAudio()">Escolher arquivo</button>
     <button class="aud-btn danger" onclick="removeAudio()">Remover</button>
   </div>
@@ -2111,7 +2211,7 @@
     <label>Volume</label>
     <span class="spd-val" id="aud-vol-val" style="font-size:1rem;min-width:48px">80%</span>
   </div>
-  <input class="spd-slider" type="range" id="aud-vol-range"
+  <input class="spd-slider" type="range" id="aud-vol-range" data-tut="musica-volume"
          min="0" max="100" value="80"
          oninput="onAudioVolumeChange(this.value)">
   <p class="aud-note">A música entra no vídeo exportado e repete em loop se for mais curta que o slideshow. Use apenas faixas que você tem direito de usar.</p>
@@ -2124,24 +2224,24 @@
     <h3>◐ Legibilidade do Texto</h3>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
-  <div class="leg-presets">
+  <div class="leg-presets" data-tut="leg-presets">
     <button class="leg-preset" onclick="applyLegPreset('light')">Foto clara</button>
     <button class="leg-preset" onclick="applyLegPreset('dark')">Foto escura</button>
     <button class="leg-preset" onclick="applyLegPreset('none')">Limpar</button>
   </div>
   <div class="leg-row">
     <label>Sombra no texto</label>
-    <button class="leg-toggle" id="leg-shadow" onclick="toggleLeg('textShadow')"></button>
+    <button class="leg-toggle" id="leg-shadow" data-tut="leg-sombra" onclick="toggleLeg('textShadow')"></button>
   </div>
   <div class="leg-row">
     <label>Contorno no texto</label>
-    <button class="leg-toggle" id="leg-stroke" onclick="toggleLeg('textStroke')"></button>
+    <button class="leg-toggle" id="leg-stroke" data-tut="leg-contorno" onclick="toggleLeg('textStroke')"></button>
   </div>
   <div class="leg-row">
     <label>Fundo da caixa</label>
     <span class="spd-val" id="box-bg-val" style="font-size:1rem;min-width:48px">0%</span>
   </div>
-  <input class="spd-slider" type="range" id="box-bg-range"
+  <input class="spd-slider" type="range" id="box-bg-range" data-tut="leg-fundo"
          min="0" max="80" value="0"
          oninput="onBoxBgChange(this.value)">
 </div>
@@ -2156,10 +2256,10 @@
     </div>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
-  <div class="color-grid" id="color-grid"></div>
+  <div class="color-grid" id="color-grid" data-tut="paleta-cores"></div>
   <div class="color-row">
     <label>Cor personalizada:</label>
-    <input type="color" id="custom-color" value="#ffffff" oninput="setColor(this.value)">
+    <input type="color" id="custom-color" data-tut="cor-personalizada" value="#ffffff" oninput="setColor(this.value)">
   </div>
 </div>
 

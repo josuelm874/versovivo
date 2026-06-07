@@ -119,15 +119,22 @@ check('VVEnhance expõe enhanceBatch', () => {
   assert(/VVEnhance/.test(enhance) && /enhanceBatch/.test(enhance), 'API enhance');
 });
 
-check('melhorar fotos automático', () => {
-  assert(readMainScript().includes('enhancePhotos'), 'flag enhance');
-  assert(html.includes('id="tl-enhance"'), 'toggle UI');
+check('melhorar qualidade nas configurações', () => {
+  assert(readMainScript().includes('enhancePhotos'), 'flag enhancePhotos');
+  assert(readMainScript().includes('enhanceVideos'), 'flag enhanceVideos');
+  assert(html.includes('id="home-settings"'), 'botão configurações');
+  assert(html.includes('id="settings-enhance-photos"'), 'toggle imagens');
+  assert(html.includes('id="settings-enhance-videos"'), 'toggle vídeos');
+  assert(!html.includes('id="tl-enhance"'), 'toggle legado removido da timeline');
+});
+
+check('SW cache v12', () => {
+  assert(sw.includes('versovivo-v12'), 'versão cache desatualizada');
 });
 
 check('SW cache inclui scripts principais', () => {
   assert(sw.includes('versovivo.js'), 'SW não cacheia app principal');
   assert(sw.includes('image-enhance.js'), 'SW não cacheia enhance');
-  assert(sw.includes('versovivo-v11'), 'versão cache desatualizada');
 });
 
 check('manifest inclui ícones PNG', () => {
@@ -149,7 +156,22 @@ check('tutorial cobre funções principais', () => {
   const s = readMainScript();
   assert(s.includes('loadTutorialDemoAssets'), 'demo tutorial');
   assert(html.includes('data-tut="legibilidade"'), 'marcador legibilidade');
-  assert((s.match(/title: '/g) || []).length >= 25, 'passos suficientes');
+  assert((s.match(/title: '/g) || []).length >= 45, 'passos suficientes');
+});
+
+check('tutorial cobre todos data-tut do editor', () => {
+  const tutBlock = readMainScript().slice(
+    readMainScript().indexOf('const TUTORIAL_STEPS'),
+    readMainScript().indexOf('function tutorialVisibleCount')
+  );
+  const skipIds = new Set(['configuracoes', 'configuracoes-btn']);
+  const ids = [...html.matchAll(/data-tut="([^"]+)"/g)].map(m => m[1]);
+  const editorSection = html.slice(html.indexOf('id="editor"'), html.indexOf('<!-- File inputs -->'));
+  const editorIds = [...editorSection.matchAll(/data-tut="([^"]+)"/g)].map(m => m[1]);
+  const homeIds = ['configuracoes-btn', 'enhance-imagens', 'enhance-videos'];
+  const required = [...new Set([...editorIds, ...homeIds])].filter(id => !skipIds.has(id));
+  const missing = required.filter(id => !tutBlock.includes(`data-tut="${id}"`) && !tutBlock.includes(`#${id}`));
+  assert(missing.length === 0, `passos faltando: ${missing.join(', ')}`);
 });
 
 check('assets tutorial existem', () => {

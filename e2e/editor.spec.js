@@ -28,6 +28,7 @@ test.describe('editor', () => {
     await expect(page.locator('#text-box-2')).toBeAttached();
     await expect(page.locator('#text-box-3')).toBeAttached();
     await expect(page.locator('#dl-btn')).toBeDisabled();
+    await page.locator('#text-tb').click();
     await expect(page.locator('button.tb', { hasText: 'Assinatura' })).toBeVisible();
 
     await page.evaluate(() => createOrEditTextBox());
