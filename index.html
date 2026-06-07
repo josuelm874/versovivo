@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8B5CF6">
   <meta name="description" content="Editor visual de vídeos poéticos — combine imagens, poemas e exporte como vídeo.">
-  <meta name="vv-build" content="20260606-8">
+  <meta name="vv-build" content="20260606-11">
   <script>
     /* Remove controles legados de «Velocidade» (migrados para a timeline). */
     (function removeLegacySpeedUI() {
@@ -1299,6 +1299,23 @@
       accent-color: var(--primary);
     }
     .tl-img-dur-sub { border-top: none; padding-top: 0; }
+    .tl-enhance-lbl {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.82rem;
+      color: var(--text);
+    }
+    .tl-enhance-lbl input { accent-color: var(--primary); width: 1rem; height: 1rem; }
+    .tl-enhance-hint {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
     .tl-img-dur-val {
       font-size: 11px;
       color: var(--gold);
@@ -1715,7 +1732,7 @@
       <span class="img-count" id="img-count"></span>
     </div>
     <div class="topbar-actions">
-      <span class="save-hint" id="save-hint">Salvo</span>
+      <span class="save-hint" id="save-hint" data-tut="salvar">Salvo</span>
       <button class="back-btn" data-tut="inicio" onclick="goHome()" aria-label="Voltar ao início">← Início</button>
       <button class="share-btn hidden" id="share-btn" data-tut="compartilhar" onclick="shareVideo()" disabled aria-label="Compartilhar vídeo">↗ Compartilhar</button>
       <button class="dl-btn" id="dl-btn" data-tut="baixar" onclick="startDownload()" disabled aria-label="Baixar vídeo">↓ Baixar Vídeo</button>
@@ -1805,13 +1822,20 @@
         </div>
         <span class="tl-img-time" id="tl-img-time-total">0:20</span>
       </div>
-      <div class="tl-img-dur">
+      <div class="tl-img-dur" data-tut="duracao">
         <label for="tl-img-duration">Duração do vídeo</label>
         <input type="range" id="tl-img-duration" min="5" max="120" step="1" value="20"
                oninput="onProjectDurationChange(this.value)">
         <span class="tl-img-dur-val" id="tl-img-duration-val">20s</span>
       </div>
-      <div class="tl-img-dur tl-img-dur-sub">
+      <div class="tl-img-dur tl-img-dur-sub" data-tut="enhance-fotos">
+        <label class="tl-enhance-lbl" for="tl-enhance">
+          <input type="checkbox" id="tl-enhance" checked onchange="toggleEnhancePhotos(this.checked)">
+          Melhorar fotos automaticamente
+        </label>
+        <span class="tl-enhance-hint" id="tl-enhance-hint">Upscale local para export nítido</span>
+      </div>
+      <div class="tl-img-dur tl-img-dur-sub" data-tut="velocidade-img">
         <label for="tl-img-speed">Tempo por imagem</label>
         <input type="range" id="tl-img-speed" min="1" max="100" value="20"
                oninput="onTimelineSpeedChange(this.value)">
@@ -1892,11 +1916,11 @@
       <!-- Expande à direita de Texto (design original, faixa única no desktop) -->
       <div id="sub-tb" aria-label="Opções de texto">
         <span class="text-target-hint" id="text-target-hint" aria-live="polite">Verso</span>
-        <button class="tb" onclick="createOrEditTextBox()">
+        <button class="tb" data-tut="verso" onclick="createOrEditTextBox()">
           <span class="ic">✎</span>
           <span class="tb-lbl">Verso</span>
         </button>
-        <button class="tb" onclick="createOrEditTitleBox()">
+        <button class="tb" data-tut="titulo" onclick="createOrEditTitleBox()">
           <span class="ic">T</span>
           <span class="tb-lbl">Título</span>
         </button>
@@ -1904,27 +1928,27 @@
           <span class="ic">@</span>
           <span class="tb-lbl">Assinatura</span>
         </button>
-        <button class="tb" onclick="openPanel('fp')">
+        <button class="tb" data-tut="fontes" onclick="openPanel('fp')">
           <span class="ic">Aa</span>
           <span class="tb-lbl">Fontes</span>
         </button>
-        <button class="tb" onclick="openPanel('ts')">
+        <button class="tb" data-tut="tamanho" onclick="openPanel('ts')">
           <span class="ic">A±</span>
           <span class="tb-lbl">Tamanho</span>
         </button>
-        <button class="tb" onclick="openPanel('fmt')">
+        <button class="tb" data-tut="formato" onclick="openPanel('fmt')">
           <span class="ic">B/I</span>
           <span class="tb-lbl">Formato</span>
         </button>
-        <button class="tb" id="align-tb" onclick="cycleAlign()">
+        <button class="tb" id="align-tb" data-tut="alinhamento" onclick="cycleAlign()">
           <span class="ic" id="align-ic">☰</span>
           <span class="tb-lbl" id="align-lbl">Centro</span>
         </button>
-        <button class="tb" onclick="openPanel('cp')">
+        <button class="tb" data-tut="cores" onclick="openPanel('cp')">
           <span class="ic">🎨</span>
           <span class="tb-lbl">Cor</span>
         </button>
-        <button class="tb" onclick="openPanel('lp')">
+        <button class="tb" data-tut="legibilidade" onclick="openPanel('lp')">
           <span class="ic">◐</span>
           <span class="tb-lbl">Legível</span>
         </button>
@@ -1973,17 +1997,17 @@
     <button class="ar-btn on" id="ar-916" onclick="setAspect('9:16')">
       <span class="ar-icon">▯</span>
       <span class="ar-lbl">9:16</span>
-      <span class="ar-sub">Reels / Shorts</span>
+      <span class="ar-sub">Reels · 1080×1920</span>
     </button>
     <button class="ar-btn" id="ar-11" onclick="setAspect('1:1')">
       <span class="ar-icon">◼</span>
       <span class="ar-lbl">1:1</span>
-      <span class="ar-sub">Feed</span>
+      <span class="ar-sub">Feed · 1080×1080</span>
     </button>
     <button class="ar-btn" id="ar-169" onclick="setAspect('16:9')">
       <span class="ar-icon">▭</span>
       <span class="ar-lbl">16:9</span>
-      <span class="ar-sub">YouTube</span>
+      <span class="ar-sub">YouTube · 1920×1080</span>
     </button>
   </div>
 </div>
@@ -2148,7 +2172,7 @@
 </div>
 
 <script src="js/export-video.js"></script>
+<script src="js/image-enhance.js"></script>
 <script src="js/versovivo.js"></script>
-</script>
 </body>
 </html>

@@ -1,11 +1,15 @@
-const CACHE = 'versovivo-v8';
+const CACHE = 'versovivo-v11';
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './js/export-video.js',
+  './js/image-enhance.js',
   './js/versovivo.js',
+  './assets/tutorial/demo-1.jpg',
+  './assets/tutorial/demo-2.jpg',
+  './assets/tutorial/demo-3.jpg',
 ];
 
 self.addEventListener('install', (event) => {

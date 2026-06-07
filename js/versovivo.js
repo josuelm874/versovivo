@@ -28,7 +28,6 @@ const FONT_SIZE_EDIT_DEFAULT = 16;
 const TEXT_BOX_PAD = 16;
 const TEXT_LINE_HEIGHT = 1.4;
 const FADE_MS   = 750;
-const LOOP_FADE_MS = 1000;
 const KEN_BURNS_ZOOM = 0.045;
 const TRANS_IN_ZOOM  = 0.035;
 const DB_NAME   = 'versovivo';
@@ -116,6 +115,7 @@ const S = {
   playing: true, speed: 2.0,
   duration: 20,              // duração total do vídeo exportado (segundos)
   playMs: 0,                 // posição na linha do tempo do slideshow (ms)
+  slideClockMs: 0,           // relógio contínuo p/ crossfade (não salta no loop da duração)
   recording: false,
   text: '',
   font: 'Playfair Display',
@@ -129,6 +129,7 @@ const S = {
   audioVolume: 0.8,
   audioEnabled: false,
   aspectKey: '9:16',
+  enhancePhotos: true,
   text2: '',
   titleFont: 'Cinzel',
   titleBold: true,
@@ -190,9 +191,9 @@ const TBOX3 = {
 };
 
 const FORMAT_PRESETS = {
-  '9:16': { label: 'Vertical · Reels', rw: 720, rh: 1280, aspect: 9 / 16 },
+  '9:16': { label: 'Vertical · Reels', rw: 1080, rh: 1920, aspect: 9 / 16 },
   '1:1':  { label: 'Quadrado · Feed', rw: 1080, rh: 1080, aspect: 1 },
-  '16:9': { label: 'Horizontal · YouTube', rw: 1280, rh: 720, aspect: 16 / 9 },
+  '16:9': { label: 'Horizontal · YouTube', rw: 1920, rh: 1080, aspect: 16 / 9 },
 };
 
 const BOX_DEFS = {
@@ -307,6 +308,7 @@ function getProjectMeta() {
     audioEnabled: S.audioEnabled,
     audioName: _audioFileName || null,
     aspectKey: S.aspectKey || '9:16',
+    enhancePhotos: S.enhancePhotos !== false,
     text2: S.text2,
     titleFont: S.titleFont,
     titleBold: S.titleBold,
@@ -359,6 +361,7 @@ function applyProjectMeta(meta) {
   S.audioVolume = meta.audioVolume ?? 0.8;
   S.audioEnabled = !!meta.audioEnabled;
   S.aspectKey = meta.aspectKey || '9:16';
+  S.enhancePhotos = meta.enhancePhotos !== false;
   S.text2 = meta.text2 ?? '';
   S.titleFont = meta.titleFont ?? 'Cinzel';
   S.titleBold = meta.titleBold !== undefined ? !!meta.titleBold : true;
@@ -603,16 +606,39 @@ function loadImagesFromBlobs(blobs) {
 
     function finalizeImages(arr, failed) {
       S.imgs = arr.filter(Boolean);
-      if (S.imgs.length) {
+      if (!S.imgs.length) {
+        resolve();
+        return;
+      }
+      (async () => {
+        if (S.enhancePhotos && globalThis.VVEnhance) {
+          const paired = S.imgs.map((img, i) => ({
+            img,
+            blob: blobs[i],
+            url: _imgBlobUrls[i],
+          })).filter(p => p.img);
+          try {
+            const enhanced = await enhancePairedImages(paired);
+            _imgBlobUrls.forEach(u => URL.revokeObjectURL(u));
+            S.imgs = enhanced.map(p => p.img);
+            _imageBlobs = enhanced.map(p => p.blob);
+            _imgBlobUrls = enhanced.map(p => p.url);
+          } catch (e) {
+            console.error('[VersoVivo] enhance restore:', e);
+            _imageBlobs = blobs.slice(0, S.imgs.length);
+          }
+        } else {
+          _imageBlobs = blobs.slice(0, S.imgs.length);
+        }
         S.playing = true;
         updatePlayUI(true);
         document.getElementById('img-count').textContent =
           `· ${S.imgs.length} imagem${S.imgs.length > 1 ? 'ns' : ''}${failed ? ` (${failed} falhou)` : ''}`;
-      }
-      updateDownloadBtn();
-      if (TBOX.show || TBOX2.show || TBOX3.show) syncTextBox();
-      rebuildTimeline();
-      resolve();
+        updateDownloadBtn();
+        if (TBOX.show || TBOX2.show || TBOX3.show) syncTextBox();
+        rebuildTimeline();
+        resolve();
+      })();
     }
   });
 }
@@ -684,13 +710,89 @@ function syncAspectUI() {
   });
 }
 
+function syncEnhanceUI() {
+  const cb = document.getElementById('tl-enhance');
+  if (cb) cb.checked = S.enhancePhotos !== false;
+}
+
+function toggleEnhancePhotos(on) {
+  S.enhancePhotos = !!on;
+  syncEnhanceUI();
+  markDirty();
+  if (S.enhancePhotos && S.mode === 'images' && S.imgs.length) {
+    reEnhanceAllImages().catch(console.error);
+  }
+}
+
+function showEnhanceProgress(msg, pct) {
+  const ov = document.getElementById('rec-ov');
+  const sub = document.getElementById('rec-sub');
+  const fill = document.getElementById('rec-fill');
+  const title = ov?.querySelector('.rec-title');
+  if (title) title.textContent = 'Melhorando fotos...';
+  if (sub) sub.textContent = msg;
+  if (fill) fill.style.width = (pct ?? 0) + '%';
+  ov?.classList.add('on');
+}
+
+function hideEnhanceProgress() {
+  const ov = document.getElementById('rec-ov');
+  const title = ov?.querySelector('.rec-title');
+  if (title) title.textContent = 'Gerando seu vídeo...';
+  ov?.classList.remove('on');
+  document.getElementById('rec-fill').style.width = '0%';
+}
+
+async function enhancePairedImages(paired) {
+  if (!S.enhancePhotos || !globalThis.VVEnhance || !paired.length) return paired;
+  const { rw, rh } = getExportSize();
+  showEnhanceProgress('Analisando resolução...', 5);
+  const { entries, enhancedCount } = await VVEnhance.enhanceBatch(
+    paired,
+    rw,
+    rh,
+    (i, total) => {
+      const pct = total ? Math.round(((i + 1) / total) * 100) : 100;
+      showEnhanceProgress(`Melhorando foto ${Math.min(i + 1, total)}/${total}...`, pct);
+    }
+  );
+  hideEnhanceProgress();
+  const hint = document.getElementById('tl-enhance-hint');
+  if (hint) {
+    hint.textContent = enhancedCount
+      ? `${enhancedCount} foto(s) otimizadas para ${rw}×${rh}`
+      : 'Fotos já tinham resolução adequada';
+  }
+  return entries;
+}
+
+async function reEnhanceAllImages() {
+  if (!S.imgs.length || !globalThis.VVEnhance) return;
+  const paired = S.imgs.map((img, i) => ({
+    img,
+    blob: _imageBlobs[i],
+    url: _imgBlobUrls[i],
+  }));
+  const enhanced = await enhancePairedImages(paired);
+  _imgBlobUrls.forEach(u => URL.revokeObjectURL(u));
+  S.imgs = enhanced.map(p => p.img);
+  _imageBlobs = enhanced.map(p => p.blob);
+  _imgBlobUrls = enhanced.map(p => p.url);
+  markDirty();
+  rebuildTimeline();
+}
+
 function setAspect(key) {
   if (!FORMAT_PRESETS[key]) return;
+  const prev = S.aspectKey;
   S.aspectKey = key;
   syncAspectUI();
   resizeCanvas();
   markDirty();
   closePanels();
+  if (prev !== key && S.enhancePhotos && S.mode === 'images' && S.imgs.length) {
+    reEnhanceAllImages().catch(console.error);
+  }
 }
 
 function hideAllTextBoxes() {
@@ -721,7 +823,7 @@ function resetEditorState() {
   _videoThumbDataUrl = null;
   S.mode = 'none';
   S.imgs = []; S.idx = 0; S.prevIdx = 0; S.fadeProgress = 1;
-  S.elapsed = 0; S.playMs = 0; S.videoEl = null; S.videoReady = false;
+  S.elapsed = 0; S.playMs = 0; S.slideClockMs = 0; S.videoEl = null; S.videoReady = false;
   S.playing = true; S.text = '';
   S.font = 'Playfair Display';
   S.bold = false; S.italic = false; S.underline = false; S.strike = false;
@@ -729,6 +831,7 @@ function resetEditorState() {
   S.textShadow = false; S.textStroke = false; S.boxBgOpacity = 0;
   S.layoutId = '';
   S.aspectKey = '9:16';
+  S.enhancePhotos = true;
   S.text2 = '';
   S.titleFont = 'Cinzel';
   S.titleBold = true;
@@ -1020,16 +1123,14 @@ function getSlideshowTimelinePos() {
 function syncSlideshowFromPlayMs() {
   if (!S.imgs.length) return;
   const slideMs = S.speed * 1000;
-  const totalMs = S.duration * 1000;
-  const fade = S.recording
-    ? getSlideFadeState(S.playMs, S.imgs.length, slideMs)
-    : getPlaybackFadeState(S.playMs, totalMs, S.imgs.length, slideMs);
+  const clockMs = S.recording ? S.playMs : S.slideClockMs;
+  const fade = getSlideFadeState(clockMs, S.imgs.length, slideMs);
   S.idx = fade.idx;
   S.prevIdx = fade.prevIdx;
   S.fadeProgress = fade.fadeT;
   S.holdT = fade.holdT ?? 0;
   S.prevHoldT = fade.prevHoldT ?? fade.holdT ?? 0;
-  S.elapsed = S.playMs % slideMs;
+  S.elapsed = clockMs % slideMs;
 }
 
 function updateTimelineProgress() {
@@ -1093,6 +1194,7 @@ function seekTimelineSec(sec) {
   sec = Math.max(0, Math.min(dur, sec));
   if (S.mode === 'images' && S.imgs.length) {
     S.playMs = sec * 1000;
+    S.slideClockMs = sec * 1000;
     syncSlideshowFromPlayMs();
     updateTimelineActive();
     updateImagesTimelineProgress();
@@ -1439,6 +1541,7 @@ function clearUploadedVideo(confirmFirst = true) {
   S.videoReady = false;
   S.mode = 'none';
   S.playMs = 0;
+  S.slideClockMs = 0;
   document.getElementById('img-count').textContent = '';
   rebuildTimeline();
   updateDownloadBtn();
@@ -1460,6 +1563,7 @@ function clearAllImages(skipConfirm = false) {
   S.idx = 0;
   S.prevIdx = 0;
   S.playMs = 0;
+  S.slideClockMs = 0;
   S.fadeProgress = 1;
   document.getElementById('img-count').textContent = '';
   rebuildTimeline();
@@ -1653,6 +1757,7 @@ function updateTimelineActive() {
 function goToSlide(i) {
   if (S.mode !== 'images' || i < 0 || i >= S.imgs.length) return;
   S.playMs = i * S.speed * 1000;
+  S.slideClockMs = S.playMs;
   syncSlideshowFromPlayMs();
   updateTimelineActive();
   markDirty();
@@ -1987,6 +2092,7 @@ function openEditor(resume = false) {
       syncTextBox();
       syncLegibilityUI();
       syncTextStyleTargetUI();
+      syncEnhanceUI();
       updateDownloadBtn();
       rebuildTimeline();
       restoreProjectAudio();
@@ -1995,6 +2101,7 @@ function openEditor(resume = false) {
     syncLegibilityUI();
     syncAudioUI();
     syncTextStyleTargetUI();
+    syncEnhanceUI();
     buildTemplatePanel();
     updateDownloadBtn();
   }
@@ -2038,6 +2145,7 @@ function tick(ts) {
   // Não modifica S.idx durante a gravação — recLoop assume controle exclusivo
   if (!S.recording && S.playing && S.mode === 'images' && S.imgs.length > 0) {
     S.playMs += dt;
+    S.slideClockMs += dt;
     const totalMs = S.duration * 1000;
     if (S.playMs >= totalMs) S.playMs -= totalMs;
     syncSlideshowFromPlayMs();
@@ -2110,7 +2218,13 @@ function drawMediaSource(tctx, w, h, src, zoom = 1) {
   }
   tctx.save();
   tctx.beginPath(); tctx.rect(0, 0, w, h); tctx.clip();
+  const prevSmooth = tctx.imageSmoothingEnabled;
+  const prevQuality = tctx.imageSmoothingQuality;
+  tctx.imageSmoothingEnabled = true;
+  if ('imageSmoothingQuality' in tctx) tctx.imageSmoothingQuality = 'high';
   tctx.drawImage(src, dx, dy, dw, dh);
+  if ('imageSmoothingQuality' in tctx) tctx.imageSmoothingQuality = prevQuality;
+  tctx.imageSmoothingEnabled = prevSmooth;
   tctx.restore();
 }
 
@@ -2141,7 +2255,7 @@ function getSlideFadeState(elapsedMs, imgCount, slideMs) {
   const fadeMs = getSlideFadeMs(slideMs);
   const holdT = within / slideMs;
 
-  if (within < fadeMs && pos >= fadeMs) {
+  if (within < fadeMs) {
     const prevIdx = idx === 0 ? imgCount - 1 : idx - 1;
     const rawT = within / fadeMs;
     const prevPos = prevIdx * slideMs + slideMs - fadeMs * 0.5;
@@ -2156,36 +2270,9 @@ function getSlideFadeState(elapsedMs, imgCount, slideMs) {
   return { idx, prevIdx: idx, fadeT: 1, holdT, prevHoldT: holdT };
 }
 
-/** Preview: crossfade suave de volta ao início quando o vídeo completa a duração. */
+/** Alias mantido para export e testes — usa apenas o crossfade por slide. */
 function getPlaybackFadeState(playMs, totalMs, imgCount, slideMs) {
-  const slide = getSlideFadeState(playMs, imgCount, slideMs);
-  if (imgCount <= 0 || totalMs <= LOOP_FADE_MS) return slide;
-
-  const timeLeft = totalMs - playMs;
-  if (timeLeft > LOOP_FADE_MS || timeLeft < 0) return slide;
-
-  const loopRaw = 1 - timeLeft / LOOP_FADE_MS;
-  const loopT = easeInOutCubic(loopRaw);
-
-  if (imgCount === 1) {
-    return {
-      idx: 0, prevIdx: 0, fadeT: 1,
-      holdT: (1 - loopT) * slide.holdT,
-      prevHoldT: slide.holdT,
-      loopBlend: true,
-    };
-  }
-
-  const visibleIdx = slide.fadeT < 0.5 && slide.prevIdx !== slide.idx ? slide.prevIdx : slide.idx;
-  const prevIdx = visibleIdx === 0 ? imgCount - 1 : visibleIdx;
-  return {
-    idx: 0,
-    prevIdx,
-    fadeT: loopT,
-    holdT: loopT * 0.08,
-    prevHoldT: Math.min(1, slide.holdT + 0.08),
-    loopBlend: true,
-  };
+  return getSlideFadeState(playMs, imgCount, slideMs);
 }
 
 function drawSlideLayer(tctx, w, h, src, holdT, alpha, incoming) {
@@ -2857,7 +2944,7 @@ function loadImages(files, append = false) {
   _imgBlobUrls = [];
 
   S.mode = 'images';
-  S.imgs = []; S.idx = 0; S.prevIdx = 0; S.fadeProgress = 1; S.elapsed = 0; S.playMs = 0;
+  S.imgs = []; S.idx = 0; S.prevIdx = 0; S.fadeProgress = 1; S.elapsed = 0; S.playMs = 0; S.slideClockMs = 0;
   loadImageFilesIntoSlideshow(Array.from(files), 0);
 }
 
@@ -2885,17 +2972,25 @@ function loadImageFilesIntoSlideshow(files, startIndex) {
   const newBlobs = Array.from(files);
   const newUrls = new Array(pending);
 
+  let finishing = false;
+
   files.forEach((f, i) => {
     const blobUrl = URL.createObjectURL(f);
     newUrls[i] = blobUrl;
     const img = new Image();
 
-    const finish = () => {
-      if (done + failed < pending) return;
-      const paired = [];
+    const finish = async () => {
+      if (done + failed < pending || finishing) return;
+      finishing = true;
+      let paired = [];
       for (let j = 0; j < pending; j++) {
         if (newImgs[j]) paired.push({ img: newImgs[j], blob: newBlobs[j], url: newUrls[j] });
         else if (newUrls[j]) URL.revokeObjectURL(newUrls[j]);
+      }
+      try {
+        paired = await enhancePairedImages(paired);
+      } catch (e) {
+        console.error('[VersoVivo] enhance:', e);
       }
       completeImageImport(paired, failed, append);
     };
@@ -2935,6 +3030,7 @@ function completeImageImport(paired, failed, append) {
     S.fadeProgress = 1;
     S.elapsed = 0;
     S.playMs = 0;
+  S.slideClockMs = 0;
   }
 
   if (append && S.idx >= S.imgs.length) S.idx = S.imgs.length - 1;
@@ -3159,6 +3255,9 @@ function buildColorPanel() {
 
 // Render one frame to any canvas context at any resolution
 function renderFrame(tctx, tw, th, mediaOpts) {
+  if (globalThis.VVExport?.configureExportCanvas) {
+    VVExport.configureExportCanvas(tctx);
+  }
   tctx.clearRect(0, 0, tw, th);
   tctx.fillStyle = '#09090F';
   tctx.fillRect(0, 0, tw, th);
@@ -3176,9 +3275,11 @@ async function exportVideoBlob(onProgress) {
   const { rw: RW, rh: RH } = getExportSize();
   const rc   = document.createElement('canvas');
   rc.width   = RW; rc.height = RH;
-  const rctx = rc.getContext('2d');
+  const rctx = rc.getContext('2d', { alpha: false });
+  if (VVExport?.configureExportCanvas) VVExport.configureExportCanvas(rctx);
 
   const TYPES = [
+    'video/mp4;codecs=avc1.640028',
     'video/mp4;codecs=avc1',
     'video/mp4;codecs=h264',
     'video/mp4',
@@ -3188,12 +3289,17 @@ async function exportVideoBlob(onProgress) {
   ];
   const mime = TYPES.find(t => MediaRecorder.isTypeSupported(t)) || '';
   const ext  = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+  const videoBps = VVExport?.getExportVideoBitrate
+    ? VVExport.getExportVideoBitrate(RW, RH)
+    : 18_000_000;
+  const audioBps = VVExport?.AUDIO_BITS_PER_SECOND ?? 192_000;
+  const exportFps = VVExport?.EXPORT_FPS ?? 30;
 
   const report = (pct, msg) => {
     if (onProgress) onProgress({ pct: Math.min(100, pct), sub: msg });
   };
 
-  const canvasStream = rc.captureStream(30);
+  const canvasStream = rc.captureStream(exportFps);
   let recordStream = canvasStream;
   let recAudioCleanup = null;
 
@@ -3226,11 +3332,15 @@ async function exportVideoBlob(onProgress) {
     };
   }
 
-  report(0, `Renderizando ${RW}×${RH} · ${ext.toUpperCase()}...`);
+  report(0, `Renderizando ${RW}×${RH} · ${Math.round(videoBps / 1_000_000)} Mbps · ${ext.toUpperCase()}...`);
 
-  const rec    = new MediaRecorder(recordStream,
-    mime ? { mimeType: mime, videoBitsPerSecond: 12_000_000 }
-         : { videoBitsPerSecond: 12_000_000 });
+  const recOpts = {
+    videoBitsPerSecond: videoBps,
+    audioBitsPerSecond: audioBps,
+  };
+  if (mime) recOpts.mimeType = mime;
+
+  const rec    = new MediaRecorder(recordStream, recOpts);
   const chunks = [];
   rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
@@ -3242,40 +3352,22 @@ async function exportVideoBlob(onProgress) {
       : 10000;
 
   let recRunning  = true;
-  let recElapsed  = 0;
-  let recPrevTs   = null;
-  S.playMs = 0;
-  S.idx = 0; S.prevIdx = 0; S.elapsed = 0; S.playing = true;
   const slideMs = S.speed * 1000;
   const totalMs = S.mode === 'images' ? S.duration * 1000 : total;
 
-  function recLoop(ts) {
-    if (!recRunning) return;
-    if (recPrevTs !== null) recElapsed += Math.min(ts - recPrevTs, 100);
-    recPrevTs = ts;
-    const fade = getPlaybackFadeState(recElapsed, totalMs, S.imgs.length, slideMs);
-    S.idx = fade.idx;
-    S.prevIdx = fade.prevIdx;
-    S.fadeProgress = fade.fadeT;
-    S.holdT = fade.holdT ?? 0;
-    S.prevHoldT = fade.prevHoldT ?? 0;
-    renderFrame(rctx, RW, RH, fade);
-    requestAnimationFrame(recLoop);
-  }
+  rec.start(250);
 
-  rec.start(80);
-
-  if (S.mode === 'images') {
-    requestAnimationFrame(recLoop);
-    const t0 = performance.now();
-    await new Promise(resolve => {
-      const iv = setInterval(() => {
-        const el  = performance.now() - t0;
-        const pct = Math.min(100, (el / total) * 100);
-        report(pct, `${formatTimelineTime(el / 1000)} / ${formatTimelineTime(S.duration)} · ${Math.round(pct)}%`);
-        if (el >= total + 600) { clearInterval(iv); resolve(); }
-      }, 100);
+  if (S.mode === 'images' && globalThis.VVExport?.renderSlideshowFrameAccurateLoop) {
+    await VVExport.renderSlideshowFrameAccurateLoop({
+      totalMs,
+      getFadeAt: elapsed => getSlideFadeState(elapsed, S.imgs.length, slideMs),
+      rctx, RW, RH,
+      renderFrame,
+      report: (pct, msg) => report(Math.min(100, pct), msg),
+      shouldStop: () => !recRunning,
     });
+  } else if (S.mode === 'images') {
+    throw new Error('Módulo js/export-video.js desatualizado. Recarregue a página (Ctrl+Shift+R).');
   } else if (S.mode === 'video' && S.videoEl && globalThis.VVExport) {
     await VVExport.renderFrameAccurateLoop({
       video: S.videoEl,
@@ -3411,7 +3503,7 @@ async function shareVideo() {
 
 if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=8').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=11').then((reg) => {
       reg.update();
       if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       reg.addEventListener('updatefound', () => {
@@ -3442,112 +3534,264 @@ let _tutActive = false;
 let _tutStep = 0;
 let _tutResizeBound = false;
 
+const TUTORIAL_DEMO_IMAGES = [
+  'assets/tutorial/demo-1.jpg',
+  'assets/tutorial/demo-2.jpg',
+  'assets/tutorial/demo-3.jpg',
+];
+
+let _tutDemoLoaded = false;
+
+/** Carrega imagens de exemplo locais para o tutorial (offline-safe). */
+async function loadTutorialDemoAssets() {
+  if (_tutDemoLoaded && S.imgs.length >= 3) return true;
+  try {
+    const blobs = await Promise.all(
+      TUTORIAL_DEMO_IMAGES.map(async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`${res.status} ${url}`);
+        return res.blob();
+      })
+    );
+    _imageBlobs = blobs;
+    await loadImagesFromBlobs(blobs);
+    if (!S.text.trim()) {
+      S.text = 'O vento leva versos\nque o coração escreve\nem silêncio.';
+      TBOX.show = true;
+    }
+    if (!S.text2.trim()) {
+      S.text2 = 'VersoVivo';
+      TBOX2.show = true;
+    }
+    if (!S.text3.trim()) {
+      S.text3 = '@seu_perfil';
+      TBOX3.show = true;
+    }
+    applyLayoutTemplate('titulo-verso');
+    syncTextBox();
+    syncTextStyleTargetUI();
+    syncLegibilityUI();
+    _tutDemoLoaded = true;
+    markDirty();
+    return true;
+  } catch (e) {
+    console.warn('[VersoVivo tutorial] assets demo indisponíveis:', e);
+    return false;
+  }
+}
+
 const TUTORIAL_STEPS = [
   {
     screen: 'home',
     target: null,
     title: 'Bem-vindo ao VersoVivo',
-    text: 'Aqui você junta fotos (ou um vídeo) com um poema e gera um vídeo pronto para postar. Este tour mostra cada parte do app em linguagem simples.',
+    text: 'Este tour passa por todas as funções do app — da tela inicial ao export final. Você pode pular a qualquer momento com «Pular tutorial» ou tecla Esc.',
   },
   {
     screen: 'home',
     target: '.new-proj',
-    title: '1 · Criar algo novo',
-    text: 'Toque em «Novo Projeto +» quando quiser começar do zero. Abre o editor com uma tela limpa.',
+    title: '1 · Novo projeto',
+    text: '«Novo Projeto +» abre o editor vazio. Se já existir rascunho salvo, o app pergunta antes de apagar.',
   },
   {
     screen: 'home',
     target: '#resume-proj',
     skipIf: () => !document.getElementById('resume-proj').classList.contains('on'),
-    title: '2 · Continuar depois',
-    text: 'Já começou e fechou o app? O rascunho fica salvo. Use «Continuar projeto» para voltar exatamente de onde parou.',
+    title: '2 · Continuar rascunho',
+    text: '«Continuar projeto» restaura fotos, textos, layout e música do último save automático (IndexedDB + backup local).',
   },
   {
     screen: 'editor',
     target: '[data-tut="preview"]',
-    title: '3 · Prévia do vídeo',
-    text: 'Esta tela grande mostra como o vídeo vai ficar. Tudo que você escolher — fotos, texto, música — aparece aqui ao vivo.',
+    prepare: () => loadTutorialDemoAssets(),
+    title: '3 · Prévia ao vivo',
+    text: 'Carregamos 3 imagens de exemplo da pasta assets/tutorial/ para você ver o slideshow funcionando. A prévia é WYSIWYG — igual ao vídeo exportado.',
   },
   {
     screen: 'editor',
     target: '[data-tut="imagens"]',
-    title: '4 · Adicionar fotos',
-    text: 'Toque em «Imagens» e escolha uma ou várias fotos do seu aparelho. Elas viram o fundo do seu vídeo poético.',
+    title: '4 · Importar fotos',
+    text: '«Imagens» abre o seletor do sistema. Escolha uma ou várias fotos JPG/PNG/WebP. Elas substituem o vídeo se houver um carregado.',
   },
   {
     screen: 'editor',
     target: '[data-tut="video"]',
-    title: '5 · Ou usar um vídeo',
-    text: 'Prefere um clipe em vez de fotos? Toque em «Vídeo» e selecione um arquivo. O poema aparece por cima dele.',
+    title: '5 · Importar vídeo',
+    text: '«Vídeo» usa um clipe como fundo em loop. O poema fica por cima. Trocar para fotos apaga o vídeo (e vice-versa).',
   },
   {
     screen: 'editor',
     target: '[data-tut="timeline"]',
     card: 'bottom',
-    title: '6 · Linha do tempo',
-    text: 'Depois de adicionar fotos, aparece esta faixa embaixo. Arraste as miniaturas para mudar a ordem. Use a barra de progresso para navegar no tempo do vídeo. Ajuste a duração total e o tempo de cada foto.',
+    title: '6 · Linha do tempo (fotos)',
+    text: 'Miniaturas mostram a ordem do slideshow. Arraste para reordenar; solte entre clips para inserir. «+» adiciona mais fotos; «Apagar» remove todas.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="duracao"]',
+    card: 'bottom',
+    title: '7 · Duração total',
+    text: 'Este controle define quantos segundos dura o vídeo exportado (5–120 s). A barra de progresso embaixo segue essa duração.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="enhance-fotos"]',
+    card: 'bottom',
+    title: '8b · Melhorar fotos automaticamente',
+    text: 'Ativado por padrão: o app amplia fotos pequenas e aplica nitidez localmente — sem site externo. Ideal quando a câmera do celular não gera 1080p. Ao mudar a proporção, as fotos são reotimizadas.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="velocidade-img"]',
+    card: 'bottom',
+    title: '8 · Tempo por imagem',
+    text: 'Quanto tempo cada foto fica na tela antes do crossfade. Valores menores = slideshow mais rápido; o fade entre fotos ajusta proporcionalmente.',
+  },
+  {
+    screen: 'editor',
+    target: '#tl-img-progress',
+    card: 'bottom',
+    skipIf: () => S.mode !== 'images' || !S.imgs.length,
+    title: '9 · Navegar no tempo',
+    text: 'Arraste a barra de progresso para ir a qualquer ponto do vídeo. Útil para conferir um verso numa foto específica.',
   },
   {
     screen: 'editor',
     target: '[data-tut="play"]',
-    title: '7 · Ver o resultado',
-    text: 'Use «Pausar» / «Retomar» para assistir ao slideshow antes de exportar. Assim você confere se está do jeito que quer.',
+    title: '10 · Play / Pausa',
+    text: 'Assista ao slideshow antes de exportar. Pausar congela a prévia; retomar continua de onde parou.',
   },
   {
     screen: 'editor',
     target: '[data-tut="proporcao"]',
-    title: '8 · Formato da tela',
-    text: '«Proporção» define o formato: vertical (Reels/TikTok), quadrado (feed) ou horizontal (YouTube). Escolha antes de baixar.',
+    prepare: () => openPanel('ar'),
+    title: '11 · Proporção do vídeo',
+    text: 'Escolha 9:16 (Reels/Shorts), 1:1 (feed quadrado) ou 16:9 (YouTube). O canvas redimensiona na hora.',
+  },
+  {
+    screen: 'editor',
+    target: '#ar',
+    title: '12 · Formatos disponíveis',
+    text: 'Cada botão muda a resolução de export em Full HD: 1080×1920, 1080×1080 ou 1920×1080. Feche o painel tocando fora ou no ✕.',
   },
   {
     screen: 'editor',
     target: '[data-tut="layout"]',
-    title: '9 · Modelos prontos',
-    text: '«Layout» traz combinações de texto já posicionadas — verso central, haiku no rodapé, título + poema, e outros.',
+    prepare: () => { closePanels(); openPanel('tp'); },
+    title: '13 · Modelos de layout',
+    text: 'Templates posicionam verso, título e assinatura de uma vez — haiku, citação lateral, título+verso, etc.',
+  },
+  {
+    screen: 'editor',
+    target: '#tp',
+    title: '14 · Aplicar template',
+    text: 'Toque num modelo para aplicar fonte, cor, posição e legibilidade sugeridas. Você pode ajustar tudo depois.',
   },
   {
     screen: 'editor',
     target: '[data-tut="texto"]',
-    title: '10 · Escrever o poema',
-    text: 'Toque em «Texto» para abrir as opções. Crie o verso, um título e, se quiser, a assinatura com o @ da sua conta. Clique na caixa para digitar; arraste os cantos para redimensionar.',
+    prepare: () => closePanels(),
+    title: '15 · Menu Texto',
+    text: '«Texto» expande a barra com Verso, Título, Assinatura e estilos. Toque numa caixa no canvas para editar; arraste cantos para redimensionar.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="verso"]',
+    title: '16 · Caixa Verso',
+    text: 'Poema principal. Clique na caixa branca sobre a imagem ou use este botão para criar/editar. Enter quebra linha.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="titulo"]',
+    title: '17 · Caixa Título',
+    text: 'Nome do poema, autor ou epígrafe. Estilo independente do verso (fonte, cor, alinhamento).',
   },
   {
     screen: 'editor',
     target: '[data-tut="assinatura"]',
-    skipIf: () => !document.getElementById('sub-tb')?.classList.contains('on'),
-    title: '10b · Assinatura (@)',
-    text: 'Use «Assinatura» para adicionar seu @ do Instagram ou outra rede. A caixa rosa fica no rodapé por padrão — ideal para creditar o autor do poema.',
+    title: '18 · Caixa Assinatura (@)',
+    text: 'Seu @ do Instagram ou handle. Por padrão fica discreta no rodapé — ideal para crédito do autor.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="fontes"]',
+    prepare: () => openPanel('fp'),
+    title: '19 · Fontes',
+    text: 'Mais de 40 fontes Google — serifadas para poesia clássica, script para assinaturas manuscritas. Aplica na caixa selecionada.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="tamanho"]',
+    prepare: () => openPanel('ts'),
+    title: '20 · Tamanho da fonte',
+    text: 'Modo Automático encolhe o texto para caber na caixa. Manual libera A− / A+ para controle fino.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="formato"]',
+    prepare: () => openPanel('fmt'),
+    title: '21 · Formatação',
+    text: 'Negrito, itálico, sublinhado e tachado — por caixa de texto. O preview e o export usam o mesmo estilo.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="alinhamento"]',
+    prepare: () => closePanels(),
+    title: '22 · Alinhamento',
+    text: 'Alterna esquerda, centro e direita dentro da caixa selecionada. O ícone muda a cada toque.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="cores"]',
+    prepare: () => openPanel('cp'),
+    title: '23 · Cor do texto',
+    text: 'Paleta rápida + seletor personalizado. Escolha contraste com o fundo — combine com «Legibilidade» se precisar.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="legibilidade"]',
+    prepare: () => openPanel('lp'),
+    title: '24 · Legibilidade',
+    text: 'Sombra, contorno e fundo semitransparente ajudam a ler sobre fotos claras ou escuras. Presets «Foto clara» / «Foto escura».',
   },
   {
     screen: 'editor',
     target: '[data-tut="musica"]',
-    title: '11 · Música de fundo',
-    text: '«Música» é opcional. Escolha um áudio do seu aparelho para tocar junto com o vídeo.',
+    prepare: () => openPanel('ap'),
+    title: '25 · Música de fundo',
+    text: 'Opcional. Escolha um áudio do aparelho; ajuste volume e ative/desative. Entra mixada no vídeo exportado.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="salvar"]',
+    prepare: () => closePanels(),
+    title: '26 · Salvamento automático',
+    text: '«Salvo» / «Salvando…» indica persistência. Projetos vão ao IndexedDB primeiro; localStorage é backup leve de metadados.',
   },
   {
     screen: 'editor',
     target: '[data-tut="baixar"]',
-    title: '12 · Baixar o vídeo',
-    text: 'Pronto? Toque em «Baixar Vídeo». O app monta o arquivo e salva no seu celular ou computador. Precisa ter pelo menos uma foto ou vídeo de fundo.',
+    title: '27 · Baixar vídeo',
+    text: 'Gera MP4 (ou WebM se o navegador não suportar H.264). Export em Full HD @ 30 fps com bitrate adaptativo (~20 Mbps). Use fotos nítidas — quanto maior a origem, melhor o resultado.',
   },
   {
     screen: 'editor',
     target: '[data-tut="compartilhar"]',
     skipIf: () => document.getElementById('share-btn').classList.contains('hidden'),
-    title: '13 · Compartilhar direto',
-    text: 'Em aparelhos compatíveis, «Compartilhar» envia o vídeo pronto para WhatsApp, Instagram ou outro app, sem passar pela galeria.',
+    title: '28 · Compartilhar',
+    text: 'Em mobile/browsers compatíveis, envia direto para WhatsApp, Instagram etc. via Web Share API — sem salvar na galeria antes.',
   },
   {
     screen: 'editor',
     target: '[data-tut="inicio"]',
-    title: '14 · Voltar ao início',
-    text: '«← Início» traz você de volta a esta tela. Seu rascunho continua salvo automaticamente.',
+    title: '29 · Voltar ao início',
+    text: '«← Início» salva o rascunho e volta à home. Se houver conteúdo, o app confirma antes de sair.',
   },
   {
     screen: 'home',
     target: '#home-help',
-    title: 'Pronto!',
-    text: 'Agora é sua vez: crie um vídeo poético. Se esquecer algum passo, toque no «?» no canto superior direito para rever este tutorial.',
+    title: '30 · Rever o tutorial',
+    text: 'Pronto! Toque no «?» quando quiser rever este guia. Substitua assets/tutorial/demo-*.jpg pelos seus arquivos para um demo personalizado.',
   },
 ];
 
@@ -3656,13 +3900,15 @@ function positionTutorialUi(step, targetEl) {
   });
 }
 
-function renderTutorialStep() {
+async function renderTutorialStep() {
   const step = TUTORIAL_STEPS[_tutStep];
   if (!step) return;
 
   closePanels();
   if (step.screen === 'home') showHomeForTutorial();
   else openEditorForTutorial();
+
+  if (step.prepare) await step.prepare();
 
   document.getElementById('tut-title').textContent = step.title;
   document.getElementById('tut-text').textContent = step.text;
@@ -3704,7 +3950,7 @@ function startTutorial() {
   tut.classList.add('on');
   tut.setAttribute('aria-hidden', 'false');
   bindTutorialResize();
-  renderTutorialStep();
+  renderTutorialStep().catch(console.error);
 }
 
 function endTutorial() {
@@ -3728,14 +3974,14 @@ function tutorialNext() {
     return;
   }
   _tutStep = next;
-  renderTutorialStep();
+  renderTutorialStep().catch(console.error);
 }
 
 function tutorialPrev() {
   const prev = findTutorialStep(-1);
   if (prev < 0) return;
   _tutStep = prev;
-  renderTutorialStep();
+  renderTutorialStep().catch(console.error);
 }
 
 document.addEventListener('keydown', e => {

@@ -69,8 +69,21 @@ check('saveProject: IndexedDB antes de localStorage', () => {
   assert(idbIdx > 0 && lsIdx > idbIdx, 'ordem de persistência incorreta');
 });
 
-check('export imagens usa getPlaybackFadeState', () => {
-  assert(readMainScript().includes('getPlaybackFadeState(recElapsed'), 'fade export');
+check('export imagens usa renderSlideshowFrameAccurateLoop', () => {
+  const main = readMainScript();
+  const exp = exportJs;
+  assert(main.includes('renderSlideshowFrameAccurateLoop'), 'slideshow frame-accurate');
+  assert(exp.includes('renderSlideshowFrameAccurateLoop'), 'função no módulo export');
+});
+
+check('export Full HD nos presets', () => {
+  const s = readMainScript();
+  assert(s.includes('rw: 1080, rh: 1920'), '9:16 Full HD');
+  assert(s.includes('rw: 1920, rh: 1080'), '16:9 Full HD');
+});
+
+check('bitrate adaptativo no export', () => {
+  assert(exportJs.includes('getExportVideoBitrate'), 'bitrate por resolução');
 });
 
 check('export vídeo usa VVExport.renderFrameAccurateLoop', () => {
@@ -86,13 +99,35 @@ check('BOX_DEFS inclui signature', () => {
   assert(readMainScript().includes('signature:'), 'caixa assinatura');
 });
 
-check('barra de progresso imagens', () => {
-  assert(html.includes('id="tl-img-progress"'), 'tl-img-progress');
+check('crossfade loop última→primeira sem pos>=fadeMs', () => {
+  const s = readMainScript();
+  assert(!/within < fadeMs && pos >= fadeMs/.test(s), 'condição que bloqueava wrap');
+  assert(/idx === 0 \? imgCount - 1 : idx - 1/.test(s), 'prevIdx no wrap');
 });
 
-check('SW cache inclui versovivo.js', () => {
+check('slideClockMs separado do playMs', () => {
+  assert(readMainScript().includes('slideClockMs'), 'relógio contínuo');
+});
+
+check('index.html referencia image-enhance.js', () => {
+  assert(html.includes('js/image-enhance.js'), 'módulo enhance não linkado');
+});
+
+check('VVEnhance expõe enhanceBatch', () => {
+  const enhance = read('js/image-enhance.js');
+  new Function(enhance);
+  assert(/VVEnhance/.test(enhance) && /enhanceBatch/.test(enhance), 'API enhance');
+});
+
+check('melhorar fotos automático', () => {
+  assert(readMainScript().includes('enhancePhotos'), 'flag enhance');
+  assert(html.includes('id="tl-enhance"'), 'toggle UI');
+});
+
+check('SW cache inclui scripts principais', () => {
   assert(sw.includes('versovivo.js'), 'SW não cacheia app principal');
-  assert(sw.includes('versovivo-v8'), 'versão cache desatualizada');
+  assert(sw.includes('image-enhance.js'), 'SW não cacheia enhance');
+  assert(sw.includes('versovivo-v11'), 'versão cache desatualizada');
 });
 
 check('manifest inclui ícones PNG', () => {
@@ -104,6 +139,21 @@ check('manifest inclui ícones PNG', () => {
 check('arquivos PNG existem no disco', () => {
   assert(fs.existsSync(path.join(ROOT, 'icons/icon-192.png')), 'icon-192.png');
   assert(fs.existsSync(path.join(ROOT, 'icons/icon-512.png')), 'icon-512.png');
+});
+
+check('barra de progresso imagens', () => {
+  assert(html.includes('id="tl-img-progress"'), 'tl-img-progress');
+});
+
+check('tutorial cobre funções principais', () => {
+  const s = readMainScript();
+  assert(s.includes('loadTutorialDemoAssets'), 'demo tutorial');
+  assert(html.includes('data-tut="legibilidade"'), 'marcador legibilidade');
+  assert((s.match(/title: '/g) || []).length >= 25, 'passos suficientes');
+});
+
+check('assets tutorial existem', () => {
+  assert(fs.existsSync(path.join(ROOT, 'assets/tutorial/demo-1.jpg')), 'demo-1.jpg');
 });
 
 check('build meta vv-build presente', () => {

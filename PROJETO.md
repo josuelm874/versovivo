@@ -32,8 +32,8 @@ O **VersoVivo** é um editor visual de vídeos poéticos que roda diretamente no
 - Ajustar fonte, tamanho (auto-fit), alinhamento, cor e formatação por caixa
 - **Legibilidade:** sombra, contorno e fundo semitransparente
 - Duração total do vídeo (5–120 s) + tempo por imagem na timeline
-- **Proporção do vídeo:** 9:16 (720×1280), 1:1 (1080×1080), 16:9 (1280×720)
-- Exportar vídeo (MP4 preferencial, WebM fallback) @ 30 fps, ~12 Mbps
+- **Proporção do vídeo:** 9:16 (1080×1920), 1:1 (1080×1080), 16:9 (1920×1080) — Full HD
+- Exportar vídeo (MP4 preferencial, WebM fallback) @ 30 fps, bitrate adaptativo (~14–32 Mbps)
 - **Compartilhar** via Web Share API (mobile / browsers compatíveis)
 - **Salvar e continuar** projeto automaticamente (IndexedDB + localStorage)
 - **Tutorial guiado** (15+ passos) na home
@@ -48,7 +48,7 @@ O **VersoVivo** é um editor visual de vídeos poéticos que roda diretamente no
 | **3** | Boot skippable, PWA, proporções, título+verso, Web Share |
 | **3.1** | Assinatura (@), barra de progresso, save atômico, WYSIWYG export |
 | **3.2** | Export vídeo frame-accurate, SW v7, ícones PNG, smoke tests, módulo export |
-| **3.3** | JS extraído para `js/versovivo.js`, SW v8, Playwright E2E |
+| **3.5** | Melhoria automática de fotos (upscale + nitidez local, sem site externo) |
 
 ---
 
@@ -161,7 +161,9 @@ Clicar ou arrastar uma caixa **seleciona** qual caixa recebe os estilos.
 
 - `ensureExportFontsLoaded()` antes de gravar — fontes corretas no arquivo
 - Slideshow: duração = `S.duration`; fade de loop idêntico ao preview (`getPlaybackFadeState`)
+- **Imagens:** `renderSlideshowFrameAccurateLoop` — 1 frame/33 ms, sem perda por rAF acelerado
 - **Vídeo:** `js/export-video.js` — seek frame-a-frame @ 30 fps (WYSIWYG sem drift de playback)
+- **Qualidade:** `imageSmoothingQuality: high`, bitrate ~10 Mbps/megapixel, áudio 192 kbps
 - Áudio mixado via `AudioContext` quando habilitado
 
 ### Testes e build
@@ -198,7 +200,7 @@ HTML5 Canvas, CSS3, JavaScript vanilla, Google Fonts, File API, MediaRecorder, W
 
 ### Por que frações no `TBOX`?
 
-50% da largura no preview = 50% no export 720×1280 ou 1080×1080. Coordenadas relativas = WYSIWYG.
+50% da largura no preview = 50% no export 1080×1920 ou 1080×1080. Coordenadas relativas = WYSIWYG.
 
 ### `BOX_DEFS` como strategy pattern
 
