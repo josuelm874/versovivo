@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8B5CF6">
   <meta name="description" content="Editor visual de vídeos poéticos — combine imagens, poemas e exporte como vídeo.">
-  <meta name="vv-build" content="20260606-3">
+  <meta name="vv-build" content="20260606-4">
   <script>
     /* Remove controles legados de «Velocidade» (migrados para a timeline). */
     (function removeLegacySpeedUI() {
@@ -1113,7 +1113,8 @@
       gap: 0.35rem;
       padding: 0.45rem 0.65rem 0.5rem;
     }
-    .tl-images.hidden { display: none; }
+    .tl-images.hidden { display: none !important; }
+
     .tl-img-head {
       display: flex;
       align-items: center;
@@ -1219,16 +1220,23 @@
       accent-color: var(--primary);
     }
     .tl-img-dur-sub { border-top: none; padding-top: 0; }
-    .tl-img-dur-val { font-size: 11px; color: var(--gold); font-weight: 600; min-width: 36px; text-align: right; }
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: #C4B5FD;
-      min-width: 2.5rem;
+    .tl-img-dur-val {
+      font-size: 11px;
+      color: var(--gold);
+      font-weight: 600;
+      min-width: 36px;
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
 
-    .tl-nle.hidden { display: none; }
+    /* Um painel por tipo de mídia — imagens OU vídeo, nunca os dois */
+    #timeline-bar:not(.on) #tl-images,
+    #timeline-bar:not(.on) #tl-nle { display: none !important; }
+    #timeline-bar.mode-images #tl-nle { display: none !important; }
+    #timeline-bar.mode-video #tl-images { display: none !important; }
+
+    .tl-nle.hidden { display: none !important; }
+    .tl-images.hidden { display: none !important; }
 
     .tl-nle {
       display: flex;
@@ -3360,6 +3368,40 @@ function rebuildVideoTimeline() {
   updateTimelineProgress();
 }
 
+function syncTimelineVisibility(hasImages, hasVideo) {
+  const bar = document.getElementById('timeline-bar');
+  const nle = document.getElementById('tl-nle');
+  const imgPanel = document.getElementById('tl-images');
+  if (!bar || !nle || !imgPanel) return;
+
+  if (!hasImages && !hasVideo) {
+    bar.classList.remove('on', 'mode-images', 'mode-video');
+    nle.classList.add('hidden');
+    imgPanel.classList.add('hidden');
+    nle.setAttribute('aria-hidden', 'true');
+    imgPanel.setAttribute('aria-hidden', 'true');
+    return;
+  }
+
+  bar.classList.add('on');
+
+  if (hasImages) {
+    bar.classList.add('mode-images');
+    bar.classList.remove('mode-video');
+    imgPanel.classList.remove('hidden');
+    imgPanel.setAttribute('aria-hidden', 'false');
+    nle.classList.add('hidden');
+    nle.setAttribute('aria-hidden', 'true');
+  } else {
+    bar.classList.add('mode-video');
+    bar.classList.remove('mode-images');
+    nle.classList.remove('hidden');
+    nle.setAttribute('aria-hidden', 'false');
+    imgPanel.classList.add('hidden');
+    imgPanel.setAttribute('aria-hidden', 'true');
+  }
+}
+
 function rebuildTimeline() {
   const bar = document.getElementById('timeline-bar');
   const nle = document.getElementById('tl-nle');
@@ -3370,29 +3412,16 @@ function rebuildTimeline() {
   const hasVideo = S.mode === 'video' && S.videoEl && S.videoReady;
 
   if (!hasImages && !hasVideo) {
-    bar.classList.remove('on', 'mode-images', 'mode-video');
-    nle?.classList.add('hidden');
-    imgPanel?.classList.add('hidden');
+    syncTimelineVisibility(false, false);
     document.getElementById('tl-img-track') && (document.getElementById('tl-img-track').innerHTML = '');
     document.getElementById('tl-row-media') && (document.getElementById('tl-row-media').innerHTML = '');
     return;
   }
 
-  bar.classList.add('on');
+  syncTimelineVisibility(hasImages, hasVideo);
 
-  if (hasImages) {
-    bar.classList.add('mode-images');
-    bar.classList.remove('mode-video');
-    nle?.classList.add('hidden');
-    imgPanel?.classList.remove('hidden');
-    rebuildImagesTimeline();
-  } else {
-    bar.classList.add('mode-video');
-    bar.classList.remove('mode-images');
-    imgPanel?.classList.add('hidden');
-    nle?.classList.remove('hidden');
-    rebuildVideoTimeline();
-  }
+  if (hasImages) rebuildImagesTimeline();
+  else rebuildVideoTimeline();
 }
 
 function updateTimelineActive() {
