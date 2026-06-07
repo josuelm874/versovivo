@@ -1,0 +1,20 @@
+{
+  "name": "VersoVivo",
+  "short_name": "VersoVivo",
+  "description": "Editor visual de vídeos poéticos — imagens, poemas e exportação.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#09090F",
+  "theme_color": "#8B5CF6",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
