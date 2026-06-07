@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8B5CF6">
   <meta name="description" content="Editor visual de vídeos poéticos — combine imagens, poemas e exporte como vídeo.">
+  <meta name="vv-build" content="20260606-3">
+  <script>
+    /* Remove controles legados de «Velocidade» (migrados para a timeline). */
+    (function removeLegacySpeedUI() {
+      function rm() {
+        document.querySelectorAll('[data-tut="velocidade"]').forEach(el => el.remove());
+        document.querySelectorAll('button.tb').forEach(btn => {
+          if (btn.textContent.includes('Velocidade') && btn.getAttribute('onclick')?.includes("'sp'"))
+            btn.remove();
+        });
+        document.getElementById('sp')?.remove();
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rm);
+      else rm();
+    })();
+  </script>
   <script>
     if (location.protocol === 'http:' || location.protocol === 'https:') {
       const m = document.createElement('link');
@@ -3571,6 +3587,7 @@ function finishBoot() {
   if (bootEl) bootEl.style.display = 'none';
   document.getElementById('home').classList.add('on');
   refreshHomeResume();
+  removeLegacySpeedUI();
 }
 
 function skipBoot() {
@@ -3715,7 +3732,17 @@ const ctx = cv.getContext('2d');
 
 let _rafId = null; // referência global para o loop principal
 
+function removeLegacySpeedUI() {
+  document.querySelectorAll('[data-tut="velocidade"]').forEach(el => el.remove());
+  document.querySelectorAll('button.tb').forEach(btn => {
+    const lbl = btn.querySelector('.tb-lbl');
+    if (lbl && lbl.textContent.trim() === 'Velocidade') btn.remove();
+  });
+  document.getElementById('sp')?.remove();
+}
+
 function openEditor(resume = false) {
+  removeLegacySpeedUI();
   document.getElementById('home').classList.remove('on');
   document.getElementById('editor').classList.add('on');
   _editorOpen = true;
@@ -5105,8 +5132,26 @@ async function shareVideo() {
 
 if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => {
+    navigator.serviceWorker.register('./sw.js?v=5').then((reg) => {
+      reg.update();
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    }).catch(err => {
       console.warn('Service worker não registrado:', err);
+    });
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
     });
   });
 }
