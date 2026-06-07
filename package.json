@@ -1,0 +1,15 @@
+{
+  "name": "versovivo",
+  "private": true,
+  "description": "Editor visual de vídeos poéticos",
+  "scripts": {
+    "test": "node tests/smoke.mjs",
+    "test:e2e": "playwright test",
+    "icons": "node scripts/generate-icons.mjs",
+    "extract": "node scripts/extract-main.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "sharp": "^0.33.5"
+  }
+}

@@ -27,45 +27,41 @@ O **VersoVivo** é um editor visual de vídeos poéticos que roda diretamente no
 ### O que ele faz
 
 - Importar múltiplas imagens **ou** um vídeo de fundo
-- Slideshow com **fade crossfade** entre imagens (600 ms)
-- Escrever poema em caixa arrastável/redimensionável sobre o canvas
-- **Segunda caixa de texto** para título ou autor (template Título + Verso)
-- Ajustar fonte, tamanho (auto-fit), alinhamento, cor e formatação
-- **Legibilidade:** sombra, contorno e fundo semitransparente na caixa
-- Controlar velocidade do slideshow (0,1s – 10s por imagem)
+- Slideshow com **fade crossfade** entre imagens + Ken Burns suave
+- **Três caixas de texto:** verso, título e assinatura (@)
+- Ajustar fonte, tamanho (auto-fit), alinhamento, cor e formatação por caixa
+- **Legibilidade:** sombra, contorno e fundo semitransparente
+- Duração total do vídeo (5–120 s) + tempo por imagem na timeline
 - **Proporção do vídeo:** 9:16 (720×1280), 1:1 (1080×1080), 16:9 (1280×720)
 - Exportar vídeo (MP4 preferencial, WebM fallback) @ 30 fps, ~12 Mbps
 - **Compartilhar** via Web Share API (mobile / browsers compatíveis)
-- **Salvar e continuar** projeto automaticamente (localStorage + IndexedDB)
-- Voltar ao início com confirmação
-- **Templates de layout** (6 presets poéticos)
-- **Timeline** de slides: miniaturas, clique, reordenar e remover
-- **Música de fundo** no preview e no vídeo exportado
-- **Boot skippable** + **PWA offline** (manifest + service worker)
+- **Salvar e continuar** projeto automaticamente (IndexedDB + localStorage)
+- **Tutorial guiado** (15+ passos) na home
+- **Boot skippable** + **PWA offline** (manifest + service worker v6)
 
-### Estado atual (Fase 3 — jun/2026)
-
-**Projeto completo** conforme planejamento original (Fases 1–3).
+### Estado atual (jun/2026)
 
 | Fase | Entregas |
 |------|----------|
 | **1** | Legibilidade, crossfade, persistência, navegação |
 | **2** | Templates, timeline, música no export |
 | **3** | Boot skippable, PWA, proporções, título+verso, Web Share |
+| **3.1** | Assinatura (@), barra de progresso, save atômico, WYSIWYG export |
+| **3.2** | Export vídeo frame-accurate, SW v7, ícones PNG, smoke tests, módulo export |
+| **3.3** | JS extraído para `js/versovivo.js`, SW v8, Playwright E2E |
 
 ---
 
 ## 2. Como acessar e usar
 
-Não precisa de instalação. Abra diretamente no navegador:
-
 ```bash
-# Opção 1: Abrir diretamente
-# Duplo clique em index.html
-
-# Opção 2: Via servidor local (recomendado — necessário para PWA e Share)
+# Recomendado — PWA, Share e service worker
 npx serve .
 # Acesse: http://localhost:3000
+
+# Testes
+npm test              # smoke estático (js/versovivo.js)
+npm run test:e2e      # Playwright (home + editor)
 ```
 
 > O **service worker** só registra em contexto seguro (HTTPS ou `localhost`).
@@ -73,17 +69,13 @@ npx serve .
 ### Fluxo de uso
 
 ```
-1. Boot → animação "VersoVivo" (ou "Pular intro →" + lembrar preferência)
-2. Home → "Continuar projeto" (se houver rascunho) ou "Novo Projeto +"
-3. Editor → carregue imagens ou vídeo + escreva poema (e título, se quiser)
-4. Ajuste → proporção, layout, timeline, fontes, legibilidade, velocidade, música
-5. Exportar → "Baixar Vídeo" ou "↗ Compartilhar" (quando disponível)
-6. Início → botão "← Início" (salva automaticamente antes de sair)
+1. Boot → animação "VersoVivo" (ou "Pular intro →")
+2. Home → "Continuar projeto" ou "Novo Projeto +"
+3. Editor → imagens ou vídeo + verso / título / assinatura
+4. Ajuste → proporção, layout, timeline, fontes, legibilidade, música
+5. Exportar → "Baixar Vídeo" ou "↗ Compartilhar"
+6. Início → "← Início" (aguarda save antes de sair)
 ```
-
-### Instalar como app (PWA)
-
-Com servidor local ou HTTPS, o navegador pode oferecer **Adicionar à tela inicial**. O app abre em modo standalone com cache offline de `index.html`, manifest e ícone.
 
 ---
 
@@ -91,16 +83,22 @@ Com servidor local ou HTTPS, o navegador pode oferecer **Adicionar à tela inici
 
 ```
 versovivo/
-│
-├── index.html           # Sistema completo (HTML + CSS + JavaScript)
-├── manifest.webmanifest # Metadados PWA (nome, tema, ícone)
-├── sw.js                # Service worker — cache offline v3
-├── icons/
-│   └── icon.svg         # Ícone do app
-└── PROJETO.md           # Este arquivo
+├── index.html              # HTML + CSS (~2.150 linhas)
+├── js/
+│   ├── versovivo.js        # App principal (~3.750 linhas)
+│   └── export-video.js     # Export frame-accurate — VVExport
+├── e2e/                    # Playwright: home.spec.js, editor.spec.js
+├── tests/smoke.mjs         # Testes estáticos: npm test
+├── scripts/
+│   ├── extract-main.mjs    # Extrai JS inline → versovivo.js
+│   └── generate-icons.mjs  # Gera PNG: npm run icons
+├── playwright.config.js
+├── package.json            # test, test:e2e, icons, extract
+├── manifest.webmanifest    # Metadados PWA + ícones PNG
+├── sw.js                   # Service worker — cache offline v8
+├── icons/icon.svg          # Ícone do app
+└── PROJETO.md              # Este arquivo
 ```
-
-> O editor continua em um único HTML por portabilidade; PWA adiciona arquivos mínimos ao redor.
 
 ---
 
@@ -110,107 +108,68 @@ versovivo/
 
 ```
 ┌─────────────────────────────────────┐
-│  <canvas id="cv">                   │  ← Imagens/vídeo + texto (export)
-│  <div id="cv-overlay">              │  ← Caixas de texto interativas
-│    <div id="text-box">              │  ← Poema (main)
+│  <canvas id="cv">                   │  ← Mídia + texto (export WYSIWYG)
+│  <div id="cv-overlay">              │  ← Caixas interativas
+│    <div id="text-box">              │  ← Verso (main)
 │    <div id="text-box-2">            │  ← Título (title)
+│    <div id="text-box-3">            │  ← Assinatura @ (signature)
 └─────────────────────────────────────┘
 ```
 
-### Estado principal (`S`)
+### Caixas de texto (`BOX_DEFS`)
 
-| Campo | Função |
-|-------|--------|
-| `mode` | `'none'` \| `'images'` \| `'video'` |
-| `imgs`, `idx`, `prevIdx`, `fadeProgress` | Slideshow + crossfade |
-| `speed` | Segundos por imagem |
-| `text`, `font`, `color`, formatação | Poema (caixa principal) |
-| `text2`, `titleFont`, `titleColor`, … | Título (segunda caixa) |
-| `aspectKey` | `'9:16'` \| `'1:1'` \| `'16:9'` |
-| `textShadow`, `textStroke`, `boxBgOpacity` | Legibilidade |
-| `recording` | Bloqueia `tick()` durante export |
+| Chave | Estado | Conteúdo típico |
+|-------|--------|-----------------|
+| `main` | `TBOX` / `S.text` | Poema |
+| `title` | `TBOX2` / `S.text2` | Título ou autor |
+| `signature` | `TBOX3` / `S.text3` | @sua_conta |
 
-### Caixas de texto (`TBOX` / `TBOX2`)
-
-Posição e tamanho em **frações** (0–1) do canvas — escalam do preview para a resolução de export sem recalcular manualmente. Definições unificadas em `BOX_DEFS.main` e `BOX_DEFS.title`.
+Posição em **frações** (0–1) — preview e export usam a mesma matemática.
 
 ### Loops de renderização
 
-- **`tick()`** — preview contínuo via `requestAnimationFrame`
-- **`recLoop()`** — export offscreen; controla índice e fade independentemente
-- **`drawAllTextLayers()`** — desenha título e verso no preview e no export
+- **`tick()`** — preview contínuo; slideshow usa `getPlaybackFadeState` (inclui fade no fim do loop)
+- **`recLoop()`** — export; usa o mesmo `getPlaybackFadeState` para WYSIWYG
+- **`drawAllTextLayers()`** — título → verso → assinatura
 
 ---
 
 ## 5. Funcionalidades detalhadas
 
-### Boot
-
-- Escrita animada "VersoVivo" (fonte Sacramento, gradiente roxo→rosa)
-- Subtítulo "Poesia em Movimento"
-- **Pular intro →** após ~0,8 s; checkbox **Pular intro sempre** (`versovivo-skip-boot`)
-
-### Home
-
-- **Continuar projeto** — aparece se existir rascunho salvo (data + resumo)
-- **Novo Projeto +** — limpa rascunho após confirmação
-
-### Editor — Topbar
-
-- Marca VersoVivo + contador de mídia
-- Indicador "Salvo" (flash verde após autosave)
-- **← Início** — volta à home (confirma se há conteúdo)
-- **Baixar Vídeo** — desabilitado até carregar mídia
-- **↗ Compartilhar** — visível quando `navigator.share` existe (tipicamente mobile)
-
-### Editor — Toolbar
+### Toolbar — sub-menu Texto
 
 | Botão | Ação |
 |-------|------|
-| Pausar/Retomar | Slideshow ou vídeo de fundo |
-| Imagens | Upload múltiplo |
-| Vídeo | Upload vídeo loop mudo |
-| Velocidade | 0,1s – 10s por slide |
-| Proporção | 9:16, 1:1, 16:9 |
-| Layout | 6 templates |
-| Música | Upload de áudio, volume, loop no export |
-| Texto → sub-menu | Caixa, **Título**, Fontes, Formato, Alinhamento, Cor, Legível |
+| Verso | Caixa principal do poema |
+| Título | Segunda caixa (dourada) |
+| **Assinatura** | Terceira caixa (@, rosa) |
+| Fontes / Tamanho / Formato / Alinhamento / Cor | Aplicam à caixa selecionada (`_textStyleTarget`) |
 
-### Painel Proporção (`#ar`)
+Clicar ou arrastar uma caixa **seleciona** qual caixa recebe os estilos.
 
-| Preset | Resolução export | Uso |
-|--------|------------------|-----|
-| 9:16 | 720×1280 | Reels, Shorts, Stories |
-| 1:1 | 1080×1080 | Feed Instagram |
-| 16:9 | 1280×720 | YouTube, apresentações |
+### Timeline — modo imagens
 
-### Painel Layout (`#tp`)
+- Miniaturas reordenáveis (drag)
+- **Barra de progresso** scrubável (navega nos segundos do vídeo)
+- Sliders: duração total + tempo por imagem
 
-| Template | Uso |
-|----------|-----|
-| Verso Central | Poema grande no centro |
-| Haiku no Rodapé | 3 linhas na base |
-| Citação Lateral | Texto à esquerda, editorial |
-| Minimal | Bloco discreto no canto |
-| Dramático | Título impactante no topo |
-| **Título + Verso** | Duas caixas: título no topo, poema na base |
+### Timeline — modo vídeo (NLE)
 
-### Timeline (`#timeline-bar`)
+- Ruler, playhead, faixas de texto e áudio
 
-Visível apenas no modo **imagens**. Permite clicar, reordenar (drag) e remover slides.
+### Exportação
 
-### Painel Música (`#ap`)
+- `ensureExportFontsLoaded()` antes de gravar — fontes corretas no arquivo
+- Slideshow: duração = `S.duration`; fade de loop idêntico ao preview (`getPlaybackFadeState`)
+- **Vídeo:** `js/export-video.js` — seek frame-a-frame @ 30 fps (WYSIWYG sem drift de playback)
+- Áudio mixado via `AudioContext` quando habilitado
 
-Upload, volume, preview loop; áudio mixado no export via `AudioContext`.
+### Testes e build
 
-### Exportação e compartilhamento
-
-- Resolução conforme `FORMAT_PRESETS[S.aspectKey]`
-- Crossfade e **ambas as caixas de texto** incluídos no vídeo
-- **`exportVideoBlob()`** — núcleo reutilizado por download e share
-- **`startDownload()`** — dispara download do arquivo
-- **`shareVideo()`** — `navigator.share({ files: [...] })` quando suportado
-- Overlay de progresso durante gravação
+```bash
+npm test          # smoke tests estáticos (14 checks)
+npm run icons     # regenera icon-192.png e icon-512.png do SVG
+```
 
 ---
 
@@ -218,133 +177,53 @@ Upload, volume, preview loop; áudio mixado no export via `AudioContext`.
 
 | Camada | Armazena |
 |--------|----------|
-| `localStorage` (`versovivo-project`) | Metadados: texto, título, fontes, layout, áudio, TBOX, TBOX2, `aspectKey`, velocidade, modo |
-| `IndexedDB` (`versovivo` / store `blobs`) | Blobs de imagens, vídeo **e música** |
+| **IndexedDB** (primeiro) | Blobs: imagens, vídeo, áudio |
+| **localStorage** (depois) | Metadados: textos, estilos, `tbox`×3, layout, aspecto |
 
-- **Autosave** debounced (~700 ms) após alterações
-- **Restaurar** via "Continuar projeto" na home
-- **Limpar** ao criar "Novo Projeto" (com confirmação)
+Ordem **IDB → localStorage** evita rascunho órfão se o save de blobs falhar.
+
+- Autosave debounced (~700 ms)
+- `goHome()` **await saveProject()** + indicador "Salvando…"
+- Erro de save: flash vermelho "Erro ao salvar"
 
 ---
 
 ## 7. Tecnologias utilizadas
 
-| Tecnologia | Função |
-|------------|--------|
-| HTML5 Canvas | Mídia, texto, boot animation |
-| CSS3 | UI dark theme roxo/rosa |
-| JavaScript Vanilla | Estado, interação, export |
-| Google Fonts | Playfair Display, Sacramento + 40 fontes poéticas |
-| File API | Upload local |
-| MediaRecorder + AudioContext | Export vídeo com trilha opcional |
-| Web Share API | Compartilhar arquivo de vídeo |
-| Service Worker + Manifest | PWA offline |
-| IndexedDB + localStorage | Persistência |
-
-### Paleta
-
-```css
---bg: #09090F;
---primary: #8B5CF6;
---second: #EC4899;
---grad: linear-gradient(135deg, #8B5CF6, #EC4899);
-```
+HTML5 Canvas, CSS3, JavaScript vanilla, Google Fonts, File API, MediaRecorder, Web Audio, Web Share API, Service Worker v6, IndexedDB + localStorage.
 
 ---
 
-## 8. Guia educativo — entenda cada parte
+## 8. Guia educativo
 
 ### Por que frações no `TBOX`?
 
-Se a caixa está a 50% da largura no preview, ela continua a 50% no export — qualquer que seja 720×1280 ou 1080×1080. Coordenadas relativas evitam bugs de escala.
+50% da largura no preview = 50% no export 720×1280 ou 1080×1080. Coordenadas relativas = WYSIWYG.
 
-### Duas caixas com `BOX_DEFS`
+### `BOX_DEFS` como strategy pattern
 
-Em vez de duplicar lógica de drag/resize/edit, cada caixa é um **objeto de configuração** (`main` / `title`) que aponta para estado (`TBOX` / `TBOX2`), IDs DOM e getters de estilo. Padrão **strategy/config object** — fácil adicionar uma terceira caixa no futuro.
+Uma definição por caixa; funções genéricas (`syncTextBoxFor`, `enterEditMode`, `drawAllTextLayers`) iteram sobre elas. Adicionar caixa = registrar objeto + HTML.
 
-### Export reutilizável
+### Save atômico (client-side)
 
-`exportVideoBlob(onProgress)` concentra gravação; `beginExportUI()` / `endExportUI()` cuidam do overlay e restauração de estado. Download e Share são **dois adapters** sobre o mesmo núcleo — evita divergência de bugs entre fluxos.
-
-### PWA mínimo
-
-O service worker cacheia só o shell (`index.html`, manifest, ícone). Fontes do Google e mídia do usuário continuam online ou locais — trade-off consciente: app instalável sem inflar o cache.
-
-### Web Share no mobile
-
-`navigator.share({ files: [File] })` abre o sheet nativo (WhatsApp, Drive, etc.). Nem todo desktop suporta arquivos; o botão só aparece quando `navigator.share` existe.
+Sem servidor, "atomicidade" = **não anunciar sucesso antes dos blobs estarem seguros**. Gravar IndexedDB primeiro; só então atualizar o ponteiro leve no localStorage.
 
 ---
 
-## 9. Como dar continuidade ao projeto
-
-### Onde encontrar no código
+## 9. Referência rápida no código
 
 | Recurso | Buscar em `index.html` |
 |---------|------------------------|
-| Cores / tema | `:root` no `<style>` |
-| Boot skippable | `skipBoot()`, `finishBoot()`, `versovivo-skip-boot` |
-| PWA | `manifest.webmanifest`, `sw.js`, registro no final do `<script>` |
-| Proporção | `FORMAT_PRESETS`, `setAspect()`, `getExportSize()` |
-| Dual text box | `BOX_DEFS`, `drawAllTextLayers()`, `#text-box-2` |
-| Fade | `FADE_MS`, `getSlideFadeState()` |
-| Legibilidade | `drawTextTo()`, painel `#lp` |
-| Templates | `LAYOUT_TEMPLATES`, `applyLayoutTemplate()` |
-| Timeline | `rebuildTimeline()`, `reorderSlide()` |
-| Música | `loadAudio()`, `exportVideoBlob()` |
-| Persistência | `saveProject()`, `restoreProjectMedia()` |
-| Export / Share | `exportVideoBlob()`, `startDownload()`, `shareVideo()` |
-
-### Melhorias opcionais (pós-plano)
-
-- Efeito Ken Burns (pan/zoom suave nas imagens)
-- Lazy-load de fontes (menos peso na primeira carga)
-- Aviso de compatibilidade de codec por browser
-- Modularizar o monolito em ES modules (se o projeto crescer)
+| Três caixas | `BOX_DEFS`, `TBOX3`, `createOrEditSignatureBox` |
+| Save seguro | `saveProject()`, `showSaveHint()` |
+| Fontes no export | `ensureExportFontsLoaded()` |
+| Progresso imagens | `updateImagesTimelineProgress()`, `#tl-img-progress` |
+| Fade loop unificado | `getPlaybackFadeState()` (preview + export) |
+| Templates | `applyLayoutTemplate()` — reseta TBOX2/TBOX3 |
+| Export vídeo frame-accurate | `js/export-video.js`, `VVExport.renderFrameAccurateLoop` |
+| Smoke tests | `tests/smoke.mjs`, `npm test` |
+| PWA | `sw.js` v7 (sem reload forçado no activate) |
 
 ---
 
-## 10. Auditoria técnica (jun/2026)
-
-### Front-end
-
-| Aspecto | Avaliação |
-|---------|-----------|
-| UI visual | Forte — tema coeso, gradientes, painéis deslizantes |
-| Responsividade | Canvas escala bem; toolbar pode apertar em telas muito estreitas |
-| Duas caixas de texto | OK após `_textStyleTarget` — Fonte/Cor/Alinhamento seguem Verso ou Título |
-| Acessibilidade | Parcial — `aria-label` nos botões principais; canvas ainda sem alternativa textual |
-| Performance | ~3400 linhas em um arquivo; 40+ fontes carregadas sob demanda no painel |
-
-### “Back-end” (camada de dados — sem servidor)
-
-| Camada | Avaliação |
-|--------|-----------|
-| localStorage | Metadados leves; limite ~5 MB respeitado |
-| IndexedDB | Blobs de mídia/áudio; store simples sem índices |
-| Autosave | Debounce 700 ms — bom equilíbrio |
-| PWA / SW | Cache v3 do shell; fontes Google ficam online |
-| Segurança | 100% client-side; sem exposição de API |
-
-### Dinâmica do produto
-
-```
-Boot (skippable) → Home (continuar/novo) → Editor → Export/Share
-                      ↑__________________________|
-                         autosave + IndexedDB
-```
-
-Fluxo coerente para o caso de uso (criar vídeo poético rápido no celular/desktop). Export e Share compartilham `exportVideoBlob()` — gravação idêntica nos dois caminhos.
-
-### Correções aplicadas nesta auditoria
-
-- Controles de texto contextuais (`_textStyleTarget`) para título vs verso
-- Indicador visual “Verso / Título” na sub-toolbar
-- Restore ao continuar projeto sempre sincroniza UI e botões
-- `drawTextTo` usa estilo por caixa (underline/strike não vazam para título)
-- `showVisibleTextBoxes()` restaura via `syncTextBox()` após export
-- Meta tags PWA Apple + `aria-label` nos botões de ação
-
----
-
-*Documento atualizado em junho de 2026 — VersoVivo Fase 3 + auditoria*
+*Documento atualizado em junho de 2026 — VersoVivo 3.2*

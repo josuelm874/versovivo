@@ -1,7 +1,11 @@
-const CACHE = 'versovivo-v5';
+const CACHE = 'versovivo-v8';
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './js/export-video.js',
+  './js/versovivo.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -17,8 +21,6 @@ self.addEventListener('activate', (event) => {
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
-      .then((clients) => clients.forEach((client) => client.navigate(client.url)))
   );
 });
 
