@@ -68,6 +68,7 @@ test.describe('melhoria de qualidade', () => {
 
   test('computeEnhanceTarget retorna null para foto já grande', async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
+    await page.waitForFunction(() => typeof globalThis.VVEnhance !== 'undefined');
     const target = await page.evaluate(() =>
       VVEnhance.computeEnhanceTarget(3840, 2160, 1080, 1920)
     );

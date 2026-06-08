@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8B5CF6">
   <meta name="description" content="Editor visual de vídeos poéticos — combine imagens, poemas e exporte como vídeo.">
-  <meta name="vv-build" content="20260606-12">
+  <meta name="vv-build" content="20260606-13">
   <script>
     /* Remove controles legados de «Velocidade» (migrados para a timeline). */
     (function removeLegacySpeedUI() {
@@ -1767,6 +1767,7 @@
       .back-btn { font-size: 0; padding: 0.45rem 0.55rem; color: var(--muted); }
       .back-btn::after { content: '←'; font-size: 0.9rem; color: inherit; }
       .img-count { display: none; }
+      body.tut-active #img-count { display: inline; }
     }
   </style>
 </head>

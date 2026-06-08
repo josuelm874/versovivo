@@ -614,7 +614,7 @@ function loadImagesFromBlobs(blobs) {
         return;
       }
       (async () => {
-        if (S.enhancePhotos && globalThis.VVEnhance) {
+        if (S.enhancePhotos && globalThis.VVEnhance && !_tutActive) {
           const paired = S.imgs.map((img, i) => ({
             img,
             blob: blobs[i],
@@ -792,6 +792,7 @@ function syncEnhanceUI() {
 }
 
 function showEnhanceProgress(msg, pct) {
+  if (_tutActive) return;
   const ov = document.getElementById('rec-ov');
   const sub = document.getElementById('rec-sub');
   const fill = document.getElementById('rec-fill');
@@ -813,18 +814,22 @@ function hideEnhanceProgress() {
 async function enhancePairedImages(paired) {
   if (!S.enhancePhotos || !globalThis.VVEnhance || !paired.length) return paired;
   const { rw, rh } = getExportSize();
-  showEnhanceProgress('Analisando resolução...', 5);
-  const { entries, enhancedCount } = await VVEnhance.enhanceBatch(
-    paired,
-    rw,
-    rh,
-    (i, total) => {
-      const pct = total ? Math.round(((i + 1) / total) * 100) : 100;
-      showEnhanceProgress(`Melhorando foto ${Math.min(i + 1, total)}/${total}...`, pct);
-    }
-  );
-  hideEnhanceProgress();
-  return entries;
+  if (!_tutActive) showEnhanceProgress('Analisando resolução...', 5);
+  try {
+    const { entries, enhancedCount } = await VVEnhance.enhanceBatch(
+      paired,
+      rw,
+      rh,
+      (i, total) => {
+        if (_tutActive) return;
+        const pct = total ? Math.round(((i + 1) / total) * 100) : 100;
+        showEnhanceProgress(`Melhorando foto ${Math.min(i + 1, total)}/${total}...`, pct);
+      }
+    );
+    return entries;
+  } finally {
+    if (!_tutActive) hideEnhanceProgress();
+  }
 }
 
 async function reEnhanceAllImages() {
@@ -3595,6 +3600,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.p
 let _tutActive = false;
 let _tutStep = 0;
 let _tutResizeBound = false;
+let _tutPreparing = false;
 
 const TUTORIAL_DEMO_IMAGES = [
   'assets/tutorial/demo-1.jpg',
@@ -3686,7 +3692,7 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="dica-canvas"]',
-    skipIf: () => S.mode !== 'none' || S.imgs.length > 0,
+    skipIf: () => _tutActive || S.mode !== 'none' || S.imgs.length > 0,
     title: '5 · Canvas vazio',
     text: 'Sem mídia, esta dica lembra de importar imagens ou vídeo. Ela some assim que você adiciona conteúdo.',
   },
@@ -3700,6 +3706,8 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="contador-imagens"]',
+    fallbackTarget: '.topbar-left',
+    card: 'bottom',
     skipIf: () => S.mode !== 'images' || !S.imgs.length,
     title: '7 · Contador de fotos',
     text: 'No topo, o contador mostra quantas imagens compõem o slideshow — útil em projetos longos.',
@@ -4060,11 +4068,15 @@ function showHomeForTutorial() {
 
 function resolveTutorialTarget(step) {
   if (!step.target) return null;
-  const el = document.querySelector(step.target);
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  if (r.width < 2 && r.height < 2) return null;
-  return el;
+  const candidates = [step.target];
+  if (step.fallbackTarget) candidates.push(step.fallbackTarget);
+  for (const sel of candidates) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width >= 2 && r.height >= 2) return el;
+  }
+  return null;
 }
 
 function positionTutorialUi(step, targetEl) {
@@ -4120,18 +4132,29 @@ async function renderTutorialStep() {
   if (step.screen === 'home') showHomeForTutorial();
   else openEditorForTutorial();
 
-  if (step.prepare) await step.prepare();
+  const prevBtn = document.getElementById('tut-prev');
+  const nextBtn = document.getElementById('tut-next');
+  _tutPreparing = true;
+  if (prevBtn) prevBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
+
+  try {
+    if (step.prepare) await step.prepare();
+  } catch (e) {
+    console.error('[VersoVivo tutorial]', e);
+  } finally {
+    _tutPreparing = false;
+  }
 
   document.getElementById('tut-title').textContent = step.title;
   document.getElementById('tut-text').textContent = step.text;
   document.getElementById('tut-progress').textContent =
     `Passo ${tutorialStepIndex(_tutStep)} de ${tutorialVisibleCount()}`;
 
-  const prevBtn = document.getElementById('tut-prev');
-  const nextBtn = document.getElementById('tut-next');
   if (prevBtn) prevBtn.disabled = findTutorialStep(-1) < 0;
   if (nextBtn) {
     const isLast = findTutorialStep(1) >= TUTORIAL_STEPS.length;
+    nextBtn.disabled = false;
     nextBtn.textContent = isLast ? 'Concluir ✓' : 'Próximo →';
   }
 
@@ -4155,22 +4178,27 @@ function bindTutorialResize() {
 function startTutorial() {
   _tutActive = true;
   _tutStep = 0;
+  _tutDemoLoaded = false;
   while (_tutStep < TUTORIAL_STEPS.length && TUTORIAL_STEPS[_tutStep].skipIf?.()) _tutStep++;
 
   const tut = document.getElementById('tutorial');
   tut.classList.remove('hidden');
   tut.classList.add('on');
   tut.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('tut-active');
   bindTutorialResize();
   renderTutorialStep().catch(console.error);
 }
 
 function endTutorial() {
   _tutActive = false;
+  _tutPreparing = false;
+  hideEnhanceProgress();
   const tut = document.getElementById('tutorial');
   tut.classList.add('hidden');
   tut.classList.remove('on');
   tut.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('tut-active');
   document.getElementById('tut-spot')?.classList.remove('on');
   document.getElementById('tut-dim')?.classList.remove('on');
 }
@@ -4180,6 +4208,7 @@ function skipTutorial() {
 }
 
 function tutorialNext() {
+  if (_tutPreparing) return;
   const next = findTutorialStep(1);
   if (next >= TUTORIAL_STEPS.length) {
     endTutorial();
@@ -4190,6 +4219,7 @@ function tutorialNext() {
 }
 
 function tutorialPrev() {
+  if (_tutPreparing) return;
   const prev = findTutorialStep(-1);
   if (prev < 0) return;
   _tutStep = prev;

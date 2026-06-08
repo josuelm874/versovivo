@@ -129,7 +129,7 @@ check('melhorar qualidade nas configurações', () => {
 });
 
 check('SW cache v12', () => {
-  assert(sw.includes('versovivo-v12'), 'versão cache desatualizada');
+  assert(sw.includes('versovivo-v13'), 'versão cache desatualizada');
 });
 
 check('SW cache inclui scripts principais', () => {
