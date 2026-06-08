@@ -3599,8 +3599,11 @@ if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.p
 // ════════════════════════════════════
 let _tutActive = false;
 let _tutStep = 0;
+let _tutTotalSteps = 0;
 let _tutResizeBound = false;
 let _tutPreparing = false;
+let _tutRenderToken = 0;
+let _tutDemoLoadPromise = null;
 
 const TUTORIAL_DEMO_IMAGES = [
   'assets/tutorial/demo-1.jpg',
@@ -3610,42 +3613,73 @@ const TUTORIAL_DEMO_IMAGES = [
 
 let _tutDemoLoaded = false;
 
-/** Carrega imagens de exemplo locais para o tutorial (offline-safe). */
+async function fetchTutorialDemoBlobs() {
+  const blobs = await Promise.all(
+    TUTORIAL_DEMO_IMAGES.map(async (url) => {
+      try {
+        const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 12_000) : null;
+        const res = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+        if (timer) clearTimeout(timer);
+        if (!res.ok) return null;
+        return res.blob();
+      } catch {
+        return null;
+      }
+    })
+  );
+  return blobs.filter(Boolean);
+}
+
+/** Carrega imagens de exemplo locais para o tutorial (offline-safe, não bloqueia UI). */
 async function loadTutorialDemoAssets() {
   if (_tutDemoLoaded && S.imgs.length >= 3) return true;
-  try {
-    const blobs = await Promise.all(
-      TUTORIAL_DEMO_IMAGES.map(async (url) => {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`${res.status} ${url}`);
-        return res.blob();
-      })
-    );
-    _imageBlobs = blobs;
-    await loadImagesFromBlobs(blobs);
-    if (!S.text.trim()) {
-      S.text = 'O vento leva versos\nque o coração escreve\nem silêncio.';
-      TBOX.show = true;
+  if (_tutDemoLoadPromise) return _tutDemoLoadPromise;
+
+  _tutDemoLoadPromise = (async () => {
+    try {
+      const blobs = await fetchTutorialDemoBlobs();
+      if (!blobs.length) return false;
+      _imageBlobs = blobs;
+      await loadImagesFromBlobs(blobs);
+      if (!S.text.trim()) {
+        S.text = 'O vento leva versos\nque o coração escreve\nem silêncio.';
+        TBOX.show = true;
+      }
+      if (!S.text2.trim()) {
+        S.text2 = 'VersoVivo';
+        TBOX2.show = true;
+      }
+      if (!S.text3.trim()) {
+        S.text3 = '@seu_perfil';
+        TBOX3.show = true;
+      }
+      if (_tutActive) {
+        TBOX.lf = 0.08; TBOX.tf = 0.38; TBOX.wf = 0.84; TBOX.hf = 0.32;
+        TBOX2.lf = 0.1; TBOX2.tf = 0.06; TBOX2.wf = 0.8; TBOX2.hf = 0.1;
+        TBOX3.lf = 0.55; TBOX3.tf = 0.9; TBOX3.wf = 0.38; TBOX3.hf = 0.07;
+      } else {
+        applyLayoutTemplate('titulo-verso');
+      }
+      syncTextBox();
+      syncTextStyleTargetUI();
+      syncLegibilityUI();
+      _tutDemoLoaded = true;
+      if (_editorOpen) markDirty();
+      return true;
+    } catch (e) {
+      console.warn('[VersoVivo tutorial] assets demo indisponíveis:', e);
+      return false;
+    } finally {
+      _tutDemoLoadPromise = null;
     }
-    if (!S.text2.trim()) {
-      S.text2 = 'VersoVivo';
-      TBOX2.show = true;
-    }
-    if (!S.text3.trim()) {
-      S.text3 = '@seu_perfil';
-      TBOX3.show = true;
-    }
-    applyLayoutTemplate('titulo-verso');
-    syncTextBox();
-    syncTextStyleTargetUI();
-    syncLegibilityUI();
-    _tutDemoLoaded = true;
-    markDirty();
-    return true;
-  } catch (e) {
-    console.warn('[VersoVivo tutorial] assets demo indisponíveis:', e);
-    return false;
-  }
+  })();
+
+  return _tutDemoLoadPromise;
+}
+
+function ensureTutorialDemoLoaded() {
+  return loadTutorialDemoAssets();
 }
 
 const TUTORIAL_STEPS = [
@@ -3679,6 +3713,7 @@ const TUTORIAL_STEPS = [
     screen: 'home',
     target: '.new-proj',
     prepare: () => closeSettings(),
+    preloadDemo: true,
     title: '4 · Novo projeto',
     text: '«Novo Projeto +» abre o editor vazio. Se já existir rascunho salvo, o app pergunta antes de apagar.',
   },
@@ -3699,7 +3734,7 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="preview"]',
-    prepare: () => loadTutorialDemoAssets(),
+    needsDemo: true,
     title: '6 · Prévia ao vivo',
     text: 'Carregamos 3 imagens de exemplo de assets/tutorial/ para você ver o slideshow. A prévia é WYSIWYG — igual ao vídeo exportado.',
   },
@@ -3810,6 +3845,7 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '#ar',
+    panel: 'ar',
     title: '21 · Formatos disponíveis',
     text: 'Cada botão muda a resolução de export em Full HD: 1080×1920, 1080×1080 ou 1920×1080. Feche o painel tocando fora ou no ✕.',
   },
@@ -3823,6 +3859,7 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '#tp',
+    panel: 'tp',
     title: '23 · Aplicar template',
     text: 'Toque num modelo para aplicar fonte, cor, posição e legibilidade sugeridas. Você pode ajustar tudo depois.',
   },
@@ -3868,12 +3905,15 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="pesquisa-fonte"]',
+    panel: 'fp',
     title: '30 · Pesquisar fonte',
     text: 'Digite parte do nome para filtrar a lista — útil quando há muitas opções no grid.',
   },
   {
     screen: 'editor',
     target: '[data-tut="grade-fontes"]',
+    panel: 'fp',
+    card: 'bottom',
     title: '31 · Grade de fontes',
     text: 'Toque numa amostra para aplicar à caixa ativa (Verso, Título ou Assinatura). O indicador no topo do painel mostra qual caixa está selecionada.',
   },
@@ -3887,6 +3927,7 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="tamanho-detalhes"]',
+    panel: 'ts',
     title: '33 · Auto vs Manual + slider',
     text: '«Automático» ajusta ao redimensionar a caixa. «Manual» habilita o slider e os botões A− / A+ para pixels exatos.',
   },
@@ -3900,6 +3941,7 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="formato-detalhes"]',
+    panel: 'fmt',
     title: '35 · Estilos individuais',
     text: 'Cada botão alterna um estilo: N (negrito), I (itálico), S (sublinhado), T (tachado). Combine à vontade.',
   },
@@ -3920,12 +3962,14 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="paleta-cores"]',
+    panel: 'cp',
     title: '38 · Paleta rápida',
     text: 'Toque numa cor predefinida para aplicar instantaneamente à caixa ativa.',
   },
   {
     screen: 'editor',
     target: '[data-tut="cor-personalizada"]',
+    panel: 'cp',
     title: '39 · Cor personalizada',
     text: 'Use o seletor nativo do sistema para qualquer tom — ideal para combinar com a identidade visual do seu perfil.',
   },
@@ -3939,24 +3983,28 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="leg-presets"]',
+    panel: 'lp',
     title: '41 · Presets de legibilidade',
     text: '«Foto clara», «Foto escura» ou «Limpar» aplicam combinações sugeridas de sombra, contorno e fundo.',
   },
   {
     screen: 'editor',
     target: '[data-tut="leg-sombra"]',
+    panel: 'lp',
     title: '42 · Sombra no texto',
     text: 'Ativa sombra suave atrás das letras — melhora leitura sobre fundos claros ou com textura.',
   },
   {
     screen: 'editor',
     target: '[data-tut="leg-contorno"]',
+    panel: 'lp',
     title: '43 · Contorno no texto',
     text: 'Desenha borda ao redor dos glifos — excelente sobre fotos muito claras ou com alto contraste.',
   },
   {
     screen: 'editor',
     target: '[data-tut="leg-fundo"]',
+    panel: 'lp',
     title: '44 · Fundo da caixa',
     text: 'Slider de 0–80% adiciona retângulo semitransparente atrás do texto, como uma placa escura.',
   },
@@ -3970,12 +4018,14 @@ const TUTORIAL_STEPS = [
   {
     screen: 'editor',
     target: '[data-tut="musica-arquivo"]',
+    panel: 'ap',
     title: '46 · Escolher / remover áudio',
     text: '«Escolher arquivo» importa MP3/WAV etc.; «Remover» limpa a trilha. O nome do arquivo aparece abaixo.',
   },
   {
     screen: 'editor',
     target: '[data-tut="musica-volume"]',
+    panel: 'ap',
     title: '47 · Volume da música',
     text: 'Controla o mix no export (0–100%). A trilha repete em loop se for mais curta que o slideshow.',
   },
@@ -4015,6 +4065,12 @@ const TUTORIAL_STEPS = [
 
 function tutorialVisibleCount() {
   return TUTORIAL_STEPS.filter(s => !s.skipIf || !s.skipIf()).length;
+}
+
+function tutorialDisplayTotal() {
+  const cur = tutorialVisibleCount();
+  if (cur > _tutTotalSteps) _tutTotalSteps = cur;
+  return _tutTotalSteps;
 }
 
 function tutorialStepIndex(stepIdx) {
@@ -4074,9 +4130,23 @@ function resolveTutorialTarget(step) {
     const el = document.querySelector(sel);
     if (!el) continue;
     const r = el.getBoundingClientRect();
-    if (r.width >= 2 && r.height >= 2) return el;
+    if (r.width >= 2 && r.height >= 2 && r.bottom > 0 && r.top < window.innerHeight) return el;
   }
   return null;
+}
+
+function clampTutorialCard(card) {
+  const pad = 16;
+  const cw = card.offsetWidth || 360;
+  const ch = card.offsetHeight || 200;
+  let top = parseFloat(card.style.top);
+  let left = parseFloat(card.style.left);
+  if (!Number.isFinite(top)) top = pad;
+  if (!Number.isFinite(left)) left = pad;
+  top = Math.max(pad, Math.min(top, window.innerHeight - ch - pad));
+  left = Math.max(pad, Math.min(left, window.innerWidth - cw - pad));
+  card.style.top = top + 'px';
+  card.style.left = left + 'px';
 }
 
 function positionTutorialUi(step, targetEl) {
@@ -4107,6 +4177,7 @@ function positionTutorialUi(step, targetEl) {
     if (step.card === 'bottom' || !targetEl) {
       card.style.top = Math.max(pad, window.innerHeight - ch - pad - (step.card === 'bottom' ? 8 : 0)) + 'px';
       card.style.left = Math.max(pad, (window.innerWidth - cw) / 2) + 'px';
+      clampTutorialCard(card);
       return;
     }
 
@@ -4120,10 +4191,18 @@ function positionTutorialUi(step, targetEl) {
 
     card.style.top = top + 'px';
     card.style.left = left + 'px';
+    clampTutorialCard(card);
   });
 }
 
+function repositionTutorialUi(step) {
+  if (!step) return;
+  const targetEl = resolveTutorialTarget(step);
+  positionTutorialUi(step, targetEl);
+}
+
 async function renderTutorialStep() {
+  const token = ++_tutRenderToken;
   const step = TUTORIAL_STEPS[_tutStep];
   if (!step) return;
 
@@ -4132,24 +4211,30 @@ async function renderTutorialStep() {
   if (step.screen === 'home') showHomeForTutorial();
   else openEditorForTutorial();
 
+  if (step.panel) openPanel(step.panel);
+
   const prevBtn = document.getElementById('tut-prev');
   const nextBtn = document.getElementById('tut-next');
-  _tutPreparing = true;
-  if (prevBtn) prevBtn.disabled = true;
-  if (nextBtn) nextBtn.disabled = true;
 
-  try {
-    if (step.prepare) await step.prepare();
-  } catch (e) {
-    console.error('[VersoVivo tutorial]', e);
-  } finally {
-    _tutPreparing = false;
+  if (step.prepare) {
+    _tutPreparing = true;
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    try {
+      await step.prepare();
+    } catch (e) {
+      console.error('[VersoVivo tutorial]', e);
+    } finally {
+      _tutPreparing = false;
+    }
   }
+
+  if (token !== _tutRenderToken || !_tutActive) return;
 
   document.getElementById('tut-title').textContent = step.title;
   document.getElementById('tut-text').textContent = step.text;
   document.getElementById('tut-progress').textContent =
-    `Passo ${tutorialStepIndex(_tutStep)} de ${tutorialVisibleCount()}`;
+    `Passo ${tutorialStepIndex(_tutStep)} de ${tutorialDisplayTotal()}`;
 
   if (prevBtn) prevBtn.disabled = findTutorialStep(-1) < 0;
   if (nextBtn) {
@@ -4160,25 +4245,54 @@ async function renderTutorialStep() {
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const targetEl = resolveTutorialTarget(step);
-      positionTutorialUi(step, targetEl);
+      if (token !== _tutRenderToken || !_tutActive) return;
+      repositionTutorialUi(step);
     });
   });
+
+  if (step.preloadDemo) {
+    ensureTutorialDemoLoaded().then(() => {
+      if (token !== _tutRenderToken || !_tutActive) return;
+      requestAnimationFrame(() => repositionTutorialUi(step));
+    }).catch(() => {});
+  }
+
+  if (step.needsDemo) {
+    const sub = document.getElementById('tut-text');
+    const baseText = step.text;
+    if (!_tutDemoLoaded && sub) {
+      sub.textContent = baseText + '\n\nCarregando imagens de exemplo…';
+    }
+    ensureTutorialDemoLoaded().then((ok) => {
+      if (token !== _tutRenderToken || !_tutActive) return;
+      if (sub) sub.textContent = baseText;
+      requestAnimationFrame(() => repositionTutorialUi(step));
+      if (!ok && sub) {
+        sub.textContent = baseText + '\n\n(Não foi possível carregar o demo — você pode importar suas fotos no passo «Imagens».)';
+      }
+    }).catch(() => {});
+  }
 }
 
 function bindTutorialResize() {
   if (_tutResizeBound) return;
   _tutResizeBound = true;
   window.addEventListener('resize', () => {
-    if (!_tutActive) return;
-    renderTutorialStep();
+    if (!_tutActive || _tutPreparing) return;
+    const step = TUTORIAL_STEPS[_tutStep];
+    if (!step) return;
+    repositionTutorialUi(step);
   });
 }
 
 function startTutorial() {
+  if (_tutActive) return;
   _tutActive = true;
   _tutStep = 0;
   _tutDemoLoaded = false;
+  _tutDemoLoadPromise = null;
+  _tutRenderToken++;
+  _tutTotalSteps = tutorialVisibleCount();
   while (_tutStep < TUTORIAL_STEPS.length && TUTORIAL_STEPS[_tutStep].skipIf?.()) _tutStep++;
 
   const tut = document.getElementById('tutorial');

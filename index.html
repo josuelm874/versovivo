@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8B5CF6">
   <meta name="description" content="Editor visual de vídeos poéticos — combine imagens, poemas e exporte como vídeo.">
-  <meta name="vv-build" content="20260606-13">
+  <meta name="vv-build" content="20260606-14">
   <script>
     /* Remove controles legados de «Velocidade» (migrados para a timeline). */
     (function removeLegacySpeedUI() {
@@ -258,6 +258,7 @@
       inset: 0;
       background: rgba(4, 4, 12, 0.82);
       display: none;
+      pointer-events: none;
     }
     .tut-dim.on { display: block; }
     .tut-spot {
@@ -344,6 +345,7 @@
       border-color: transparent;
     }
     .tut-btn.tut-skip:hover { color: #A78BFA; }
+    body.tut-active .tut-card { transition: none; }
 
     .home-brand {
       font-size: 2.2rem; font-weight: 900;
@@ -2077,8 +2079,8 @@
     <div class="tut-nav">
       <button type="button" class="tut-btn tut-skip" onclick="skipTutorial()">Pular tutorial</button>
       <div class="tut-nav-main">
-        <button type="button" class="tut-btn tut-prev" id="tut-prev" onclick="tutorialPrev()">← Anterior</button>
-        <button type="button" class="tut-btn tut-next" id="tut-next" onclick="tutorialNext()">Próximo →</button>
+        <button type="button" class="tut-btn tut-prev" id="tut-prev" onclick="event.stopPropagation(); tutorialPrev()">← Anterior</button>
+        <button type="button" class="tut-btn tut-next" id="tut-next" onclick="event.stopPropagation(); tutorialNext()">Próximo →</button>
       </div>
     </div>
   </div>
