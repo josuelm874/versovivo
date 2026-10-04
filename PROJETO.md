@@ -49,6 +49,7 @@ O **VersoVivo** é um editor visual de vídeos poéticos que roda diretamente no
 | **3.1** | Assinatura (@), barra de progresso, save atômico, WYSIWYG export |
 | **3.2** | Export vídeo frame-accurate, SW v7, ícones PNG, smoke tests, módulo export |
 | **3.5** | Melhoria automática de fotos (upscale + nitidez local, sem site externo) |
+| **4.0** | APK Android (Capacitor), salvar/compartilhar nativo, painel Efeitos, export de vídeo em tempo real no celular — ver `docs/RELATORIO-TESTES.md` |
 
 ---
 
@@ -58,6 +59,9 @@ O **VersoVivo** é um editor visual de vídeos poéticos que roda diretamente no
 # Recomendado — PWA, Share e service worker
 npx serve .
 # Acesse: http://localhost:3000
+
+# APK Android (aparelho conectado via adb)
+powershell scripts/apk.ps1
 
 # Testes
 npm test              # smoke estático (js/versovivo.js)

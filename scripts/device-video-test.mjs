@@ -1,0 +1,33 @@
+// Testa modo VÍDEO + música no aparelho, exporta e valida. Requer adb forward 9222.
+import { chromium } from '@playwright/test';
+import { execSync } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
+const OUT = 'test-results/device'; mkdirSync(OUT, { recursive: true });
+const log = (n, d) => console.log(n, JSON.stringify(d));
+const b = await chromium.connectOverCDP('http://localhost:9222');
+const page = b.contexts()[0].pages()[0];
+page.on('dialog', d => d.accept().catch(() => {}));
+await page.evaluate(() => { localStorage.setItem('versovivo-skip-boot', '1'); localStorage.removeItem('versovivo-project'); });
+await page.reload({ waitUntil: 'load' });
+await page.locator('.new-proj').click();
+await page.waitForFunction(() => document.getElementById('editor')?.classList.contains('on'));
+await page.setInputFiles('#video-input', 'test-media/bbb_10s.mp4');
+await page.waitForFunction(() => S.mode === 'video' && S.videoReady, null, { timeout: 60000 });
+log('video', await page.evaluate(() => ({ mode: S.mode, w: S.videoEl.videoWidth, h: S.videoEl.videoHeight, dur: S.videoEl.duration })));
+await page.setInputFiles('#audio-input', 'test-media/music_soundhelix1.mp3');
+await page.waitForTimeout(2500);
+log('audio', await page.evaluate(() => ({ enabled: S.audioEnabled, name: typeof _audioFileName !== 'undefined' ? _audioFileName : null })));
+await page.evaluate(() => { createOrEditTextBox(); });
+await page.locator('#tb-edit').fill('Cada quadro é um verso\nque o tempo não apaga');
+await page.evaluate(() => { closePanels(); setFilter('warm'); setDim(20); const a = document.activeElement; a && a.blur(); });
+await page.waitForTimeout(1200);
+writeFileSync(`${OUT}/10-video-mode.png`, execSync('adb exec-out screencap -p', { maxBuffer: 1 << 28 }));
+await page.evaluate(() => { window.__blobs = []; const o = URL.createObjectURL.bind(URL); URL.createObjectURL = x => { window.__blobs.push(x.size); return o(x); }; });
+const t = Date.now();
+await page.evaluate(() => { startDownload(); });
+let focus = '';
+for (let i = 0; i < 120 && !/Chooser/i.test(focus); i++) { await page.waitForTimeout(2000); focus = execSync('adb shell dumpsys window', { encoding: 'utf8' }).split(String.fromCharCode(10)).find(l => l.includes('mCurrentFocus')) || ''; }
+log('export', { seconds: (Date.now() - t) / 1000, sheet: /Chooser/.test(focus) });
+writeFileSync(`${OUT}/11-video-share.png`, execSync('adb exec-out screencap -p', { maxBuffer: 1 << 28 }));
+execSync('adb shell input keyevent KEYCODE_BACK');
+await b.close();

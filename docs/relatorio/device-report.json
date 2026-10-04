@@ -1,0 +1,33 @@
+{
+ "steps": [
+  {
+   "n": "caps",
+   "ua": "Mozilla/5.0 (Linux; Android 16; 2311DRK48G Build/BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/153.0.8010.36 Mobile Safari/537.36",
+   "mp4": true,
+   "webm": true,
+   "share": false,
+   "dpr": 3,
+   "vw": 406,
+   "vh": 864,
+   "ms": 780
+  },
+  {
+   "n": "imgs",
+   "loaded": 4,
+   "dlEnabled": true,
+   "ms": 4622
+  },
+  {
+   "n": "export",
+   "seconds": 30.426,
+   "shareSheet": "mCurrentFocus=Window{e01cc0e u0 com.android.intentresolver/com.android.intentresolver.ChooserActivity}",
+   "ms": 38125
+  },
+  {
+   "n": "cache",
+   "files": "total 49744\r\ndrwxrws--x 4 u0_a321 u0_a321_cache     3452 2026-10-04 01:15 .\r\ndrwx------ 9 u0_a321 u0_a321           3452 2026-10-04 00:13 ..\r\ndrwx--S--- 3 u0_a321 u0_a321_cache     3452 2026-10-04 00:13 Crash Reports\r\n-rw------- 1 u0_a321 u0_a321_cache 50868913 2026-10-04 01:15 VersoVivo_2026-10-04.mp4\r\ndrwx--S--- 6 u0_a321 u0_a321_cache     3452 2026-10-04 00:13 WebView",
+   "ms": 38908
+  }
+ ],
+ "t0": 1791087264787
+}

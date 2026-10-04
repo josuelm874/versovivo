@@ -25,13 +25,19 @@ await page.evaluate(() => createOrEditTextBox());
 await page.locator('#tb-edit').fill('O mar guarda em silêncio\ntudo o que o vento esqueceu');
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${OUT}/03-text.png` });
+if (process.env.FX) {
+  await page.evaluate(() => { openPanel('fx'); setTransition('slide'); setFilter('vintage'); setDim(30); });
+  await page.waitForTimeout(800);
+  writeFileSync(`${OUT}/06-fx-panel.png`, execSync('adb exec-out screencap -p', { maxBuffer: 1 << 28 }));
+  await page.evaluate(() => closePanels());
+}
 // captura o blob exportado
 await page.evaluate(() => {
   window.__blobs = []; const o = URL.createObjectURL.bind(URL);
   URL.createObjectURL = b => { window.__blobs.push({ type: b.type, size: b.size }); return o(b); };
 });
 const t = Date.now();
-await page.evaluate(() => startDownload());
+await page.evaluate(() => { startDownload(); });
 const adb = (c) => execSync(`adb ${c}`, { encoding: 'utf8' });
 let focus = '';
 for (let i = 0; i < 90 && !/chooser|Share|Resolver/i.test(focus); i++) { await page.waitForTimeout(2000); focus = (adb('shell dumpsys window').split(String.fromCharCode(10)).find(l => l.includes('mCurrentFocus')) || ''); }

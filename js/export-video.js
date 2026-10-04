@@ -95,6 +95,51 @@
   }
 
   /**
+   * Mede quanto custa um seek. Em celulares (decoder de hardware) cada seek leva centenas de ms:
+   * gravar quadro-a-quadro com MediaRecorder (relógio de parede) geraria um vídeo longo e com poucos fps.
+   */
+  async function probeSeekMs(video, samples = 4) {
+    if (!video) return 0;
+    video.pause();
+    const dur = video.duration && isFinite(video.duration) ? video.duration : 1;
+    const base = Math.min(0.3, dur / 4);
+    const t0 = performance.now();
+    for (let k = 1; k <= samples; k++) {
+      await seekVideoTo(video, base + k * 0.13);
+    }
+    const avg = (performance.now() - t0) / samples;
+    await seekVideoTo(video, 0);
+    return avg;
+  }
+
+  /** Grava reproduzindo o vídeo em tempo real (duração e fps corretos mesmo com seek lento). */
+  async function renderRealtimeLoop(opts) {
+    const { video, rctx, RW, RH, totalMs, renderFrame, report, shouldStop } = opts;
+    if (!video) return;
+    const videoSec = video.duration && isFinite(video.duration) && video.duration > 0
+      ? video.duration : totalMs / 1000;
+    const exportMs = Math.min(totalMs, videoSec * 1000);
+    await seekVideoTo(video, 0);
+    try { await video.play(); } catch (_) { /* autoplay bloqueado: segue com o quadro atual */ }
+    const start = performance.now();
+    await new Promise(resolve => {
+      const step = () => {
+        const el = performance.now() - start;
+        if ((shouldStop && shouldStop()) || video.ended || video.currentTime >= videoSec - 0.03 || el > exportMs + 4000) {
+          resolve();
+          return;
+        }
+        renderFrame(rctx, RW, RH);
+        const pct = Math.min(100, (video.currentTime / videoSec) * 100);
+        if (report) report(pct, `Gravando vídeo · ${Math.round(pct)}% (tempo real)`);
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    video.pause();
+  }
+
+  /**
    * Slideshow de imagens: um frame a cada 1/FPS com tempo real — evita perda por rAF descontrolado.
    */
   async function renderSlideshowFrameAccurateLoop(opts) {
@@ -133,6 +178,8 @@
     getExportVideoBitrate,
     seekVideoTo,
     renderFrameAccurateLoop,
+    probeSeekMs,
+    renderRealtimeLoop,
     renderSlideshowFrameAccurateLoop,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

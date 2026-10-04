@@ -87,7 +87,7 @@ check('bitrate adaptativo no export', () => {
 });
 
 check('export vídeo usa VVExport.renderFrameAccurateLoop', () => {
-  assert(readMainScript().includes('VVExport.renderFrameAccurateLoop'), 'export frame-accurate');
+  assert(readMainScript().includes('VVExport.renderFrameAccurateLoop') && readMainScript().includes('VVExport.renderRealtimeLoop'), 'export frame-accurate');
 });
 
 check('applyLayoutTemplate reseta TBOX2/TBOX3', () => {

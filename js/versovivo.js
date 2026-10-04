@@ -795,8 +795,11 @@ function onSettingsEnhanceChange() {
   }
 }
 
+// Nitidez JS custa ~80 ms/quadro a 1080x1920 num celular: desligada durante export em tempo real.
+let _skipFrameSharpen = false;
+
 function maybeSharpenVideoFrame(tctx, w, h, src) {
-  if (!S.enhanceVideos || !globalThis.VVEnhance?.applyFrameSharpen || !src) return;
+  if (_skipFrameSharpen || !S.enhanceVideos || !globalThis.VVEnhance?.applyFrameSharpen || !src) return;
   const sw = src.videoWidth || 0;
   const sh = src.videoHeight || 0;
   if (!sw || !sh) return;
@@ -3266,6 +3269,7 @@ function setColor(hex) {
 // ════════════════════════════════════
 function openPanel(id) {
   closePanels();
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   document.getElementById('ov').classList.add('on');
   document.getElementById(id).classList.add('on');
   if (id === 'fp') buildFontPanel();
@@ -3437,6 +3441,15 @@ async function exportVideoBlob(onProgress) {
     if (onProgress) onProgress({ pct: Math.min(100, pct), sub: msg });
   };
 
+  // Seek lento (celular) => grava em tempo real; rápido (desktop) => frame-accurate.
+  let seekMs = 0;
+  if (S.mode === 'video' && S.videoEl && globalThis.VVExport?.probeSeekMs) {
+    if (onProgress) onProgress({ pct: 0, sub: 'Testando desempenho do aparelho...' });
+    seekMs = await VVExport.probeSeekMs(S.videoEl);
+  }
+  const useRealtime = seekMs > 60;
+  _skipFrameSharpen = useRealtime;
+
   const canvasStream = rc.captureStream(exportFps);
   let recordStream = canvasStream;
   let recAudioCleanup = null;
@@ -3507,7 +3520,8 @@ async function exportVideoBlob(onProgress) {
   } else if (S.mode === 'images') {
     throw new Error('Módulo js/export-video.js desatualizado. Recarregue a página (Ctrl+Shift+R).');
   } else if (S.mode === 'video' && S.videoEl && globalThis.VVExport) {
-    await VVExport.renderFrameAccurateLoop({
+    const runVideoLoop = useRealtime ? VVExport.renderRealtimeLoop : VVExport.renderFrameAccurateLoop;
+    await runVideoLoop({
       video: S.videoEl,
       rctx, RW, RH,
       totalMs: total,
@@ -3520,6 +3534,7 @@ async function exportVideoBlob(onProgress) {
   }
 
   recRunning = false;
+  _skipFrameSharpen = false;
   rec.stop();
   recordStream.getTracks().forEach(t => t.stop());
   if (recAudioCleanup) recAudioCleanup();
@@ -3529,7 +3544,7 @@ async function exportVideoBlob(onProgress) {
   await new Promise(r => setTimeout(r, 300));
 
   const blob = new Blob(chunks, { type: mime || 'video/webm' });
-  return { blob, ext, mime, rw: RW, rh: RH };
+  return { blob, ext, mime, rw: RW, rh: RH, seekMs, useRealtime };
 }
 
 function beginExportUI() {
@@ -3555,6 +3570,7 @@ function beginExportUI() {
 
 function endExportUI(saved) {
   S.recording = false;
+  _skipFrameSharpen = false;
   document.getElementById('rec-ov').classList.remove('on');
   S.playing  = saved.wasPlaying;
   S.idx      = saved.wasIdx;
