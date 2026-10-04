@@ -178,6 +178,16 @@ check('assets tutorial existem', () => {
   assert(fs.existsSync(path.join(ROOT, 'assets/tutorial/demo-1.jpg')), 'demo-1.jpg');
 });
 
+check('efeitos: painel, funções e persistência', () => {
+  const js = readMainScript();
+  assert(html.includes('id="fx"'), 'painel fx');
+  for (const k of ['slide', 'zoom', 'wipe']) assert(html.includes(`data-fx-tr="${k}"`), `transição ${k}`);
+  for (const k of ['warm', 'cool', 'bw', 'vintage', 'vivid']) assert(html.includes(`data-fx-filter="${k}"`), `filtro ${k}`);
+  for (const f of ['setTransition', 'setFilter', 'setDim', 'setKenBurns', 'syncFxUI']) assert(js.includes(`function ${f}`), f);
+  assert(/transition: S\.transition, filter: S\.filter, dim: S\.dim/.test(js), 'save meta');
+  assert(js.includes("S.transition = FX_TRANSITIONS.includes(meta.transition)"), 'load meta');
+});
+
 check('build meta vv-build presente', () => {
   assert(/vv-build/.test(html), 'meta build');
 });

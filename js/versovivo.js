@@ -28,6 +28,15 @@ const FONT_SIZE_EDIT_DEFAULT = 16;
 const TEXT_BOX_PAD = 16;
 const TEXT_LINE_HEIGHT = 1.4;
 const FADE_MS   = 750;
+const FX_TRANSITIONS = ['fade', 'slide', 'zoom', 'wipe'];
+const FX_FILTERS = {
+  none: 'none',
+  warm: 'sepia(0.25) saturate(1.2) hue-rotate(-8deg) brightness(1.03)',
+  cool: 'saturate(1.1) hue-rotate(12deg) brightness(1.02) contrast(1.03)',
+  bw: 'grayscale(1) contrast(1.1)',
+  vintage: 'sepia(0.5) contrast(0.92) brightness(1.05) saturate(0.85)',
+  vivid: 'saturate(1.45) contrast(1.1)',
+};
 const KEN_BURNS_ZOOM = 0.045;
 const TRANS_IN_ZOOM  = 0.035;
 const DB_NAME   = 'versovivo';
@@ -131,6 +140,10 @@ const S = {
   aspectKey: '9:16',
   enhancePhotos: true,
   enhanceVideos: true,
+  transition: 'fade',      // fade | slide | zoom | wipe
+  filter: 'none',          // none | warm | cool | bw | vintage | vivid
+  dim: 0,                  // escurecer mídia p/ legibilidade (0–0.6)
+  kenBurns: true,
   text2: '',
   titleFont: 'Cinzel',
   titleBold: true,
@@ -311,6 +324,7 @@ function getProjectMeta() {
     aspectKey: S.aspectKey || '9:16',
     enhancePhotos: S.enhancePhotos !== false,
     enhanceVideos: S.enhanceVideos !== false,
+    transition: S.transition, filter: S.filter, dim: S.dim, kenBurns: S.kenBurns !== false,
     text2: S.text2,
     titleFont: S.titleFont,
     titleBold: S.titleBold,
@@ -365,6 +379,10 @@ function applyProjectMeta(meta) {
   S.aspectKey = meta.aspectKey || '9:16';
   S.enhancePhotos = meta.enhancePhotos !== false;
   S.enhanceVideos = meta.enhanceVideos !== false;
+  S.transition = FX_TRANSITIONS.includes(meta.transition) ? meta.transition : 'fade';
+  S.filter = FX_FILTERS[meta.filter] ? meta.filter : 'none';
+  S.dim = Math.max(0, Math.min(0.6, Number(meta.dim) || 0));
+  S.kenBurns = meta.kenBurns !== false;
   S.text2 = meta.text2 ?? '';
   S.titleFont = meta.titleFont ?? 'Cinzel';
   S.titleBold = meta.titleBold !== undefined ? !!meta.titleBold : true;
@@ -2343,9 +2361,12 @@ function getPlaybackFadeState(playMs, totalMs, imgCount, slideMs) {
 
 function drawSlideLayer(tctx, w, h, src, holdT, alpha, incoming) {
   if (!src || alpha <= 0.004) return;
-  let zoom = 1 + KEN_BURNS_ZOOM * Math.max(0, Math.min(1, holdT));
-  if (incoming) zoom += TRANS_IN_ZOOM * (1 - Math.max(0, Math.min(1, holdT)));
-  else zoom += KEN_BURNS_ZOOM * 0.35;
+  let zoom = 1;
+  if (S.kenBurns !== false) {
+    zoom += KEN_BURNS_ZOOM * Math.max(0, Math.min(1, holdT));
+    if (incoming) zoom += TRANS_IN_ZOOM * (1 - Math.max(0, Math.min(1, holdT)));
+    else zoom += KEN_BURNS_ZOOM * 0.35;
+  }
   tctx.save();
   tctx.globalAlpha = alpha;
   drawMediaSource(tctx, w, h, src, zoom);
@@ -2362,12 +2383,46 @@ function drawSlideTransition(tctx, w, h, cur, prev, fadeT, holdT, prevHoldT) {
     drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
     return;
   }
-  drawSlideLayer(tctx, w, h, prev, prevHoldT, 1 - t, false);
-  drawSlideLayer(tctx, w, h, cur, holdT, t, true);
+  const kind = S.transition;
+  if (kind === 'slide') {
+    tctx.save(); tctx.translate(-t * w, 0);
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1, false);
+    tctx.restore();
+    tctx.save(); tctx.translate((1 - t) * w, 0);
+    drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
+    tctx.restore();
+  } else if (kind === 'zoom') {
+    drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
+    const k = 1 + 0.3 * t;
+    tctx.save(); tctx.translate(w / 2, h / 2); tctx.scale(k, k); tctx.translate(-w / 2, -h / 2);
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1 - t, false);
+    tctx.restore();
+  } else if (kind === 'wipe') {
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1, false);
+    tctx.save(); tctx.beginPath(); tctx.rect(0, 0, w * t, h); tctx.clip();
+    drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
+    tctx.restore();
+  } else {
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1 - t, false);
+    drawSlideLayer(tctx, w, h, cur, holdT, t, true);
+  }
 }
 
 // Draw the current media (image slideshow or video) with optional crossfade
 function drawMedia(tctx, w, h, opts = {}) {
+  tctx.save();
+  tctx.filter = FX_FILTERS[S.filter] || 'none';
+  drawMediaCore(tctx, w, h, opts);
+  tctx.restore();
+  if (S.dim > 0 && (S.mode === 'images' ? S.imgs.length : S.mode === 'video')) {
+    tctx.save();
+    tctx.fillStyle = `rgba(0,0,0,${S.dim})`;
+    tctx.fillRect(0, 0, w, h);
+    tctx.restore();
+  }
+}
+
+function drawMediaCore(tctx, w, h, opts = {}) {
   const idx     = opts.idx     !== undefined ? opts.idx     : S.idx;
   const prevIdx = opts.prevIdx !== undefined ? opts.prevIdx : S.prevIdx;
   const fadeT   = opts.fadeT   !== undefined ? opts.fadeT   : S.fadeProgress;
@@ -3220,7 +3275,23 @@ function openPanel(id) {
   if (id === 'tp') buildTemplatePanel();
   if (id === 'ap') syncAudioUI();
   if (id === 'ar') syncAspectUI();
+  if (id === 'fx') syncFxUI();
 }
+
+function syncFxUI() {
+  document.querySelectorAll('[data-fx-tr]').forEach(b => b.classList.toggle('on', b.dataset.fxTr === S.transition));
+  document.querySelectorAll('[data-fx-filter]').forEach(b => b.classList.toggle('on', b.dataset.fxFilter === S.filter));
+  const d = document.getElementById('fx-dim'), dv = document.getElementById('fx-dim-val');
+  if (d) d.value = Math.round(S.dim * 100);
+  if (dv) dv.textContent = Math.round(S.dim * 100) + '%';
+  const kb = document.getElementById('fx-kb');
+  if (kb) kb.checked = S.kenBurns !== false;
+}
+
+function setTransition(k) { if (!FX_TRANSITIONS.includes(k)) return; S.transition = k; syncFxUI(); markDirty(); }
+function setFilter(k) { if (!FX_FILTERS[k]) return; S.filter = k; syncFxUI(); markDirty(); }
+function setDim(v) { S.dim = Math.max(0, Math.min(0.6, Number(v) / 100)); syncFxUI(); markDirty(); }
+function setKenBurns(on) { S.kenBurns = !!on; syncFxUI(); markDirty(); }
 
 function closePanels() {
   document.querySelectorAll('.panel.on').forEach(p => p.classList.remove('on'));
@@ -3895,6 +3966,13 @@ const TUTORIAL_STEPS = [
     panel: 'tp',
     title: '23 · Aplicar template',
     text: 'Toque num modelo para aplicar fonte, cor, posição e legibilidade sugeridas. Você pode ajustar tudo depois.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="efeitos"]',
+    prepare: () => { closePanels(); openPanel('fx'); },
+    title: '23b · Efeitos',
+    text: 'Escolha a transição entre imagens (suave, deslizar, zoom, cortina), um filtro de cor e quanto escurecer o fundo para o texto ficar legível.',
   },
   {
     screen: 'editor',

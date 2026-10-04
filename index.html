@@ -434,7 +434,7 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .img-count {
+    .img-count { white-space: nowrap;
       font-size: 0.75rem;
       color: var(--muted);
       margin-left: 0.6rem;
@@ -467,6 +467,12 @@
 
     /* Aspect ratio panel */
     .ar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
+    .fx-sec { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted, #8a8aa3); margin: .9rem 0 .5rem; display: flex; justify-content: space-between; }
+    .fx-val { color: #A78BFA; letter-spacing: 0; }
+    .fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); gap: .5rem; }
+    .fx-grid .ar-btn { min-height: 2.9rem; }
+    .fx-range { width: 100%; accent-color: var(--primary); height: 2.4rem; }
+    .fx-check { margin: .6rem 0 1rem; }
     .ar-btn {
       padding: 0.85rem 0.5rem;
       border: 1px solid var(--border);
@@ -1984,6 +1990,10 @@
         <span class="ic">▦</span>
         <span class="tb-lbl">Layout</span>
       </button>
+      <button class="tb" data-tut="efeitos" onclick="openPanel('fx')">
+        <span class="ic">✨</span>
+        <span class="tb-lbl">Efeitos</span>
+      </button>
       <button class="tb" id="audio-tb" data-tut="musica" onclick="openPanel('ap')">
         <span class="ic">♫</span>
         <span class="tb-lbl">Música</span>
@@ -2113,6 +2123,37 @@
       <span class="ar-sub">YouTube · 1920×1080</span>
     </button>
   </div>
+</div>
+
+<!-- ── Efeitos Panel ── -->
+<div class="panel" id="fx" style="max-height:72vh;overflow-y:auto;">
+  <div class="panel-drag"></div>
+  <div class="panel-head">
+    <h3>✨ Efeitos</h3>
+    <button class="panel-x" onclick="closePanels()">✕</button>
+  </div>
+  <div class="fx-sec">Transição entre imagens</div>
+  <div class="fx-grid">
+    <button class="ar-btn on" data-fx-tr="fade" onclick="setTransition('fade')"><span class="ar-lbl">Suave</span></button>
+    <button class="ar-btn" data-fx-tr="slide" onclick="setTransition('slide')"><span class="ar-lbl">Deslizar</span></button>
+    <button class="ar-btn" data-fx-tr="zoom" onclick="setTransition('zoom')"><span class="ar-lbl">Zoom</span></button>
+    <button class="ar-btn" data-fx-tr="wipe" onclick="setTransition('wipe')"><span class="ar-lbl">Cortina</span></button>
+  </div>
+  <div class="fx-sec">Filtro de cor</div>
+  <div class="fx-grid">
+    <button class="ar-btn on" data-fx-filter="none" onclick="setFilter('none')"><span class="ar-lbl">Original</span></button>
+    <button class="ar-btn" data-fx-filter="warm" onclick="setFilter('warm')"><span class="ar-lbl">Quente</span></button>
+    <button class="ar-btn" data-fx-filter="cool" onclick="setFilter('cool')"><span class="ar-lbl">Frio</span></button>
+    <button class="ar-btn" data-fx-filter="bw" onclick="setFilter('bw')"><span class="ar-lbl">P&amp;B</span></button>
+    <button class="ar-btn" data-fx-filter="vintage" onclick="setFilter('vintage')"><span class="ar-lbl">Vintage</span></button>
+    <button class="ar-btn" data-fx-filter="vivid" onclick="setFilter('vivid')"><span class="ar-lbl">Vívido</span></button>
+  </div>
+  <div class="fx-sec">Escurecer fundo <span id="fx-dim-val" class="fx-val">0%</span></div>
+  <input type="range" id="fx-dim" min="0" max="60" step="5" value="0" class="fx-range" oninput="setDim(this.value)" aria-label="Escurecer fundo">
+  <label class="settings-check fx-check">
+    <input type="checkbox" id="fx-kb" checked onchange="setKenBurns(this.checked)">
+    <span>Movimento suave nas imagens (zoom lento)</span>
+  </label>
 </div>
 
 <!-- ── Font Panel ── -->
