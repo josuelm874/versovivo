@@ -636,7 +636,7 @@ function loadImagesFromBlobs(blobs) {
         S.playing = true;
         updatePlayUI(true);
         document.getElementById('img-count').textContent =
-          `· ${S.imgs.length} imagem${S.imgs.length > 1 ? 'ns' : ''}${failed ? ` (${failed} falhou)` : ''}`;
+          `· ${S.imgs.length} ${S.imgs.length > 1 ? 'imagens' : 'imagem'}${failed ? ` (${failed} falhou)` : ''}`;
         updateDownloadBtn();
         if (TBOX.show || TBOX2.show || TBOX3.show) syncTextBox();
         rebuildTimeline();
@@ -694,7 +694,7 @@ function updateDownloadBtn() {
   document.getElementById('dl-btn').disabled = !hasMedia;
   const shareBtn = document.getElementById('share-btn');
   if (shareBtn) {
-    const canShare = typeof navigator.share === 'function';
+    const canShare = typeof navigator.share === 'function' || isNativeApp();
     shareBtn.classList.toggle('hidden', !canShare);
     shareBtn.disabled = !hasMedia;
   }
@@ -1684,7 +1684,7 @@ function syncImagesTimelineUI() {
 
   if (totalEl) {
     totalEl.textContent = n
-      ? `Vídeo: ${formatTimelineTime(durSec)} · ${n} imagem${n > 1 ? 'ns' : ''} · ${S.speed.toFixed(1)}s cada`
+      ? `Vídeo: ${formatTimelineTime(durSec)} · ${n} ${n > 1 ? 'imagens' : 'imagem'} · ${S.speed.toFixed(1)}s cada`
       : 'Vídeo: 0:00';
   }
   if (durVal) durVal.textContent = durSec + 's';
@@ -1867,7 +1867,7 @@ function removeSlide(i) {
 
   syncSlideshowFromPlayMs();
   document.getElementById('img-count').textContent =
-    `· ${S.imgs.length} imagem${S.imgs.length > 1 ? 'ns' : ''}`;
+    `· ${S.imgs.length} ${S.imgs.length > 1 ? 'imagens' : 'imagem'}`;
   rebuildTimeline();
   markDirty();
 }
@@ -3105,7 +3105,7 @@ function completeImageImport(paired, failed, append) {
   S.playing = true;
   updatePlayUI(true);
   document.getElementById('img-count').textContent =
-    `· ${S.imgs.length} imagem${S.imgs.length > 1 ? 'ns' : ''}${failed ? ` (${failed} falhou)` : ''}`;
+    `· ${S.imgs.length} ${S.imgs.length > 1 ? 'imagens' : 'imagem'}${failed ? ` (${failed} falhou)` : ''}`;
   updateDownloadBtn();
   markDirty();
   rebuildTimeline();
@@ -3506,6 +3506,32 @@ function endExportUI(saved) {
   updateDownloadBtn();
 }
 
+const isNativeApp = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+// Android WebView não baixa blob: grava em cache (em pedaços) e abre a folha de compartilhar.
+async function saveAndShareNative(blob, name) {
+  const { Filesystem, Share } = window.Capacitor.Plugins;
+  const CHUNK = 3 * 1024 * 1024; // múltiplo de 3 => base64 concatenável
+  const toB64 = b => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1]);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(b);
+  });
+  await Filesystem.deleteFile({ path: name, directory: 'CACHE' }).catch(() => {});
+  for (let off = 0; off < blob.size; off += CHUNK) {
+    const data = await toB64(blob.slice(off, off + CHUNK));
+    if (off === 0) await Filesystem.writeFile({ path: name, data, directory: 'CACHE' });
+    else await Filesystem.appendFile({ path: name, data, directory: 'CACHE' });
+  }
+  const { uri } = await Filesystem.getUri({ path: name, directory: 'CACHE' });
+  try {
+    await Share.share({ title: 'VersoVivo', text: 'Poesia em movimento', url: uri, dialogTitle: 'Salvar ou enviar vídeo' });
+  } catch (err) {
+    if (!/cancel/i.test(String(err && err.message || err))) throw err; // usuário fechou a folha
+  }
+}
+
 async function startDownload() {
   const btn = document.getElementById('dl-btn');
   const sub = document.getElementById('rec-sub');
@@ -3518,12 +3544,18 @@ async function startDownload() {
       document.getElementById('rec-fill').style.width = pct + '%';
       if (msg) sub.textContent = msg;
     });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `VersoVivo_${new Date().toISOString().slice(0, 10)}.${ext}`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    const fname = `VersoVivo_${new Date().toISOString().slice(0, 10)}.${ext}`;
+    if (isNativeApp()) {
+      sub.textContent = 'Salvando…';
+      await saveAndShareNative(blob, fname);
+    } else {
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = fname;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+    }
   } catch (err) {
     console.error(err);
     alert('Erro ao gerar vídeo:\n' + err.message);
@@ -3534,7 +3566,7 @@ async function startDownload() {
 }
 
 async function shareVideo() {
-  if (typeof navigator.share !== 'function') {
+  if (!isNativeApp() && typeof navigator.share !== 'function') {
     alert('Compartilhamento não disponível neste navegador.');
     return;
   }
@@ -3552,6 +3584,7 @@ async function shareVideo() {
       if (msg) sub.textContent = msg;
     });
     const name = `VersoVivo_${new Date().toISOString().slice(0, 10)}.${ext}`;
+    if (isNativeApp()) { await saveAndShareNative(blob, name); return; }
     const file = new File([blob], name, { type: blob.type });
     const shareData = { files: [file], title: 'VersoVivo', text: 'Poesia em movimento' };
     if (typeof navigator.canShare === 'function' && !navigator.canShare(shareData)) {

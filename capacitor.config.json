@@ -1,0 +1,6 @@
+{
+  "appId": "app.versovivo.editor",
+  "appName": "VersoVivo",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}
