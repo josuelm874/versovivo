@@ -1,4 +1,4 @@
-const CACHE = 'versovivo-v16';
+const CACHE = 'versovivo-v17';
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/icon.svg',
@@ -14,6 +14,9 @@ const STATIC_ASSETS = [
   './assets/fonts/PlayfairDisplay-PXDTzYgA.woff2',
   './assets/fonts/PlayfairDisplay-iTXtHA-Q.woff2',
   './assets/fonts/Sacramento-UG4C0f_Q.woff2',
+  './js/intro.js',
+  './js/intro-data.js',
+  './assets/intro/versovivo.png',
   './js/export-video.js',
   './js/image-enhance.js',
   './js/versovivo.js',

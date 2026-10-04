@@ -128,8 +128,8 @@ check('melhorar qualidade nas configurações', () => {
   assert(!html.includes('id="tl-enhance"'), 'toggle legado removido da timeline');
 });
 
-check('SW cache v16', () => {
-  assert(sw.includes('versovivo-v16'), 'versão cache desatualizada');
+check('SW cache v17', () => {
+  assert(sw.includes('versovivo-v17'), 'versão cache desatualizada');
 });
 
 check('SW cache inclui scripts principais', () => {
@@ -186,6 +186,15 @@ check('efeitos: painel, funções e persistência', () => {
   for (const f of ['setTransition', 'setFilter', 'setDim', 'setKenBurns', 'syncFxUI']) assert(js.includes(`function ${f}`), f);
   assert(/transition: S\.transition, filter: S\.filter, dim: S\.dim/.test(js), 'save meta');
   assert(js.includes("S.transition = FX_TRANSITIONS.includes(meta.transition)"), 'load meta');
+});
+
+check('intro estilo hello: sem opção de pular, regra de 1 min', () => {
+  const intro = fs.readFileSync(path.join(ROOT, 'js/intro.js'), 'utf8');
+  assert(!/boot-skip|skipBoot|Pular intro/i.test(html + readMainScript()), 'opção de pular ainda existe');
+  assert(html.includes('js/intro.js') && html.includes('js/intro-data.js'), 'scripts da intro');
+  assert(/AWAY_MS\s*=\s*60_?000/.test(intro), 'limite de 1 min');
+  assert(fs.existsSync(path.join(ROOT, 'assets/intro/versovivo.png')), 'png da palavra');
+  assert(readMainScript().includes('VVIntro.init'), 'init da intro');
 });
 
 check('build meta vv-build presente', () => {

@@ -195,15 +195,7 @@ body::after {
 .tut-btn.tut-next:hover { color: var(--ink); }
 .tut-progress { font-family: var(--serif-display); font-variant-caps: all-small-caps; letter-spacing: .12em; color: var(--gold); }
 
-/* ── Abertura ─────────────────────────────────────────── */
-#boot-sub { font-family: var(--serif-display); font-style: italic; letter-spacing: .24em; color: var(--gold); }
-#boot-skip { border-radius: 3px; font-family: var(--serif-display); font-style: italic; }
-
-#boot-skip { background: transparent; border: 1px solid var(--gold-soft); color: var(--gold); }
-#boot-skip:hover { border-color: var(--gold); color: var(--paper); }
-.boot-remember { font-family: var(--serif-text); font-style: italic; }
-.tut-btn { white-space: nowrap; padding-left: .8rem; padding-right: .8rem; }
 .tut-title { font-size: 1.25rem; }
 .tut-text { font-size: 1.02rem; line-height: 1.5; }
 .tut-nav, .tut-nav-main { gap: .35rem; min-width: 0; }
-.tut-btn { padding: .55rem .65rem; font-size: .95rem; }
+.tut-btn { white-space: nowrap; padding: .55rem .65rem; font-size: .95rem; }

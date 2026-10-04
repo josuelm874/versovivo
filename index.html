@@ -67,7 +67,7 @@
     #boot {
       position: fixed; inset: 0;
       background: var(--bg);
-      z-index: 1000;
+      z-index: 20000;  /* acima de painéis e exportação: a intro também cobre o editor ao voltar */
     }
     #boot-canvas {
       position: absolute;
@@ -75,55 +75,6 @@
       width: 100%; height: 100%;
       display: block;
     }
-    #boot-sub {
-      position: absolute;
-      left: 0; right: 0;
-      text-align: center;
-      font-size: 0.76rem;
-      letter-spacing: 0.5em;
-      color: var(--muted);
-      text-transform: uppercase;
-      opacity: 0;
-      transform: translateY(10px);
-      pointer-events: none;
-    }
-    #boot-skip {
-      position: absolute;
-      bottom: 2rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(34,28,24,.85);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 0.5rem 1.1rem;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity .3s, border-color .2s, color .2s;
-      z-index: 2;
-    }
-    #boot-skip.on { opacity: 1; }
-    #boot-skip:hover { border-color: var(--primary); color: #E6D3A8; }
-    .boot-remember {
-      position: absolute;
-      bottom: 4.6rem;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      font-size: 0.72rem;
-      color: var(--muted);
-      opacity: 0;
-      transition: opacity .3s;
-      z-index: 2;
-      cursor: pointer;
-      user-select: none;
-    }
-    .boot-remember.on { opacity: 1; }
-    .boot-remember input { accent-color: var(--primary); }
 
     /* ═══════════════════════════════
        HOME
@@ -1787,11 +1738,6 @@
 <!-- ────────────── BOOT ────────────── -->
 <div id="boot">
   <canvas id="boot-canvas"></canvas>
-  <div id="boot-sub">Poesia em Movimento</div>
-  <label class="boot-remember" id="boot-remember">
-    <input type="checkbox" id="boot-skip-check"> Pular intro sempre
-  </label>
-  <button type="button" id="boot-skip" onclick="skipBoot()">Pular intro →</button>
 </div>
 
 <!-- ────────────── HOME ────────────── -->
@@ -2322,6 +2268,8 @@
 
 <script src="js/export-video.js"></script>
 <script src="js/image-enhance.js"></script>
+<script src="js/intro-data.js"></script>
+<script src="js/intro.js"></script>
 <script src="js/versovivo.js"></script>
 </body>
 </html>

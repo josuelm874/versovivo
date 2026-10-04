@@ -266,8 +266,6 @@ const BOX_DEFS = {
 };
 
 const STYLE_TARGET_LABELS = { main: 'Verso', title: 'Título', signature: 'Assinatura' };
-let _bootFinish = null;
-let _bootRaf = null;
 
 const ALIGN_NAMES = ['center','right','left'];
 const ALIGN_ICS   = ['☰','➡','⬅'];
@@ -2003,151 +2001,16 @@ function syncAudioPlayback() {
 }
 
 // ════════════════════════════════════
-//  BOOT ANIMATION — iPhone "Hello" canvas writing effect
+//  INTRO — estilo "hello" do iPhone (js/intro.js). Sem opção de pular;
+//  toca na abertura e ao voltar após > 1 min fora do app.
 // ════════════════════════════════════
 function finishBoot() {
-  const bootEl = document.getElementById('boot');
-  if (_bootRaf) cancelAnimationFrame(_bootRaf);
-  _bootRaf = null;
-  if (bootEl) bootEl.style.display = 'none';
   document.getElementById('home').classList.add('on');
   refreshHomeResume();
   removeLegacySpeedUI();
 }
 
-function skipBoot() {
-  const remember = document.getElementById('boot-skip-check');
-  if (remember && remember.checked) localStorage.setItem('versovivo-skip-boot', '1');
-  finishBoot();
-}
-
-(function bootHello() {
-  const bootEl  = document.getElementById('boot');
-  const skipBtn = document.getElementById('boot-skip');
-  const rememberEl = document.getElementById('boot-remember');
-
-  if (localStorage.getItem('versovivo-skip-boot') === '1') {
-    finishBoot();
-    return;
-  }
-
-  const WORD        = 'VersoVivo';
-  const FONT_FAMILY = "'Sacramento', cursive";
-  const WRITE_START = 0.25;
-  const WRITE_DUR   = 2.0;
-  const HOLD_DUR    = 0.55;
-  const FADE_DUR    = 0.55;
-  const SUB_IN_AT   = 1.9;
-  const SUB_IN_DUR  = 0.45;
-  const TOTAL       = WRITE_START + WRITE_DUR + HOLD_DUR + FADE_DUR + 0.15;
-  const SKIP_AT     = 0.8;
-
-  const subEl   = document.getElementById('boot-sub');
-  const bCv     = document.getElementById('boot-canvas');
-  const bCtx    = bCv.getContext('2d');
-  let startTime = null;
-
-  function resize() {
-    bCv.width  = bootEl.offsetWidth  || window.innerWidth;
-    bCv.height = bootEl.offsetHeight || window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  function writeEase(t) {
-    const s = t * t * (3 - 2 * t);
-    const undulate = 0.018 * Math.sin(t * Math.PI * 5);
-    return Math.min(1, Math.max(0, s + undulate));
-  }
-
-  function drawFrame(ts) {
-    if (!startTime) startTime = ts;
-    const elapsed = (ts - startTime) / 1000;
-
-    if (elapsed >= SKIP_AT) {
-      if (skipBtn) skipBtn.classList.add('on');
-      if (rememberEl) rememberEl.classList.add('on');
-    }
-
-    const W = bCv.width, H = bCv.height;
-    bCtx.clearRect(0, 0, W, H);
-    bCtx.fillStyle = getComputedStyle(document.documentElement)
-      .getPropertyValue('--bg').trim() || '#09090F';
-    bCtx.fillRect(0, 0, W, H);
-
-    const writeRaw = (elapsed - WRITE_START) / WRITE_DUR;
-    const writeT   = Math.min(1, Math.max(0, writeRaw));
-    const progress = writeEase(writeT);
-
-    if (writeT > 0) {
-      const fontSize = Math.min(W * 0.18, H * 0.22, 120);
-      bCtx.font = `${fontSize}px ${FONT_FAMILY}`;
-      bCtx.textAlign = 'center';
-      bCtx.textBaseline = 'middle';
-      const cx = W / 2, cy = H / 2;
-      const fullW = bCtx.measureText(WORD).width;
-      bCtx.save();
-      bCtx.beginPath();
-      bCtx.rect(cx - fullW * 0.55, 0, fullW * 1.1 * progress, H);
-      bCtx.clip();
-      const grad = bCtx.createLinearGradient(cx - fullW / 2, 0, cx + fullW / 2, 0);
-      grad.addColorStop(0, '#F3E3BC');
-      grad.addColorStop(0.5, '#D9BE86');
-      grad.addColorStop(1, '#B78F4E');
-      bCtx.fillStyle = grad;
-      bCtx.fillText(WORD, cx, cy);
-      bCtx.restore();
-    }
-
-    if (writeT > 0 && writeT < 1) {
-      const fontSize = Math.min(W * 0.18, H * 0.22, 120);
-      bCtx.font = `${fontSize}px ${FONT_FAMILY}`;
-      bCtx.textAlign = 'center';
-      bCtx.textBaseline = 'middle';
-      const cx = W / 2, cy = H / 2;
-      const fullW = bCtx.measureText(WORD).width;
-      const penX = (cx - fullW * 0.55) + fullW * 1.1 * progress;
-      const arcOffset = Math.sin(progress * Math.PI) * (fontSize * 0.08);
-      const penY = cy - arcOffset;
-      const halo = bCtx.createRadialGradient(penX, penY, 0, penX, penY, fontSize * 0.55);
-      halo.addColorStop(0, 'rgba(227, 201, 143, 0.26)');
-      halo.addColorStop(1, 'rgba(201, 166, 107, 0)');
-      bCtx.beginPath();
-      bCtx.arc(penX, penY, fontSize * 0.55, 0, Math.PI * 2);
-      bCtx.fillStyle = halo;
-      bCtx.fill();
-    }
-
-    const subProgress = Math.min(1, Math.max(0, (elapsed - SUB_IN_AT) / SUB_IN_DUR));
-    if (subEl) {
-      subEl.style.opacity = subProgress;
-      subEl.style.transform = `translateY(${(1 - subProgress) * 10}px)`;
-      subEl.style.top = (H / 2 + Math.min(W * 0.18, H * 0.22, 120) * 0.85) + 'px';
-    }
-
-    const fadeStart = WRITE_START + WRITE_DUR + HOLD_DUR;
-    const fadeT = Math.min(1, Math.max(0, (elapsed - fadeStart) / FADE_DUR));
-    if (fadeT > 0) {
-      bCtx.globalAlpha = fadeT;
-      bCtx.fillStyle = getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg').trim() || '#09090F';
-      bCtx.fillRect(0, 0, W, H);
-      bCtx.globalAlpha = 1;
-      if (subEl) subEl.style.opacity = Math.max(0, subProgress - fadeT);
-    }
-
-    if (elapsed >= TOTAL) {
-      finishBoot();
-      return;
-    }
-
-    _bootRaf = requestAnimationFrame(drawFrame);
-  }
-
-  document.fonts.ready.then(() => {
-    _bootRaf = requestAnimationFrame(drawFrame);
-  });
-})();
+VVIntro.init({ showHome: finishBoot, isBusy: () => S.recording });
 
 // ════════════════════════════════════
 //  CANVAS SETUP
