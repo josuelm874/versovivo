@@ -35,20 +35,21 @@
   <title>VersoVivo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Sacramento&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Sacramento&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg:      #09090F;
-      --surface: #10101A;
-      --card:    #17172A;
-      --border:  #252540;
-      --muted:   #5B5B80;
-      --text:    #EDEDF8;
-      --primary: #8B5CF6;
-      --second:  #EC4899;
-      --grad:    linear-gradient(135deg, #8B5CF6, #EC4899);
+      --bg:      #14110F;
+      --surface: #1B1714;
+      --card:    #221C18;
+      --border:  #3A3027;
+      --muted:   #8C7F6E;
+      --text:    #EFE6D6;
+      --primary: #C9A66B;
+      --second:  #8E2A33;
+      --grad:    linear-gradient(135deg, #E3C98F, #B78F4E);
     }
 
     body {
@@ -91,7 +92,7 @@
       bottom: 2rem;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(23,23,42,.85);
+      background: rgba(34,28,24,.85);
       border: 1px solid var(--border);
       color: var(--muted);
       padding: 0.5rem 1.1rem;
@@ -104,7 +105,7 @@
       z-index: 2;
     }
     #boot-skip.on { opacity: 1; }
-    #boot-skip:hover { border-color: var(--primary); color: #C4B5FD; }
+    #boot-skip:hover { border-color: var(--primary); color: #E6D3A8; }
     .boot-remember {
       position: absolute;
       bottom: 4.6rem;
@@ -129,7 +130,7 @@
     ═══════════════════════════════ */
     #home {
       position: fixed; inset: 0;
-      background: radial-gradient(ellipse 80% 50% at 50% 40%, #12122A 0%, var(--bg) 100%);
+      background: radial-gradient(ellipse 80% 50% at 50% 40%, #261A10 0%, var(--bg) 100%);
       display: none; flex-direction: column;
       align-items: center; justify-content: center;
       gap: 2.5rem;
@@ -145,7 +146,7 @@
       height: 34px;
       border-radius: 50%;
       border: 1px solid var(--border);
-      background: rgba(23, 23, 42, 0.82);
+      background: rgba(34,28,24, 0.82);
       color: var(--muted);
       font-size: 0.95rem;
       font-weight: 700;
@@ -158,8 +159,8 @@
     }
     .home-help:hover {
       border-color: var(--primary);
-      color: #C4B5FD;
-      background: rgba(139, 92, 246, 0.15);
+      color: #E6D3A8;
+      background: rgba(201,166,107, 0.15);
       transform: scale(1.06);
     }
     .home-settings { right: 3.25rem; font-size: 0.88rem; }
@@ -179,7 +180,7 @@
     .settings-dim {
       position: absolute;
       inset: 0;
-      background: rgba(4, 4, 12, 0.78);
+      background: rgba(12,8,5, 0.78);
     }
     .settings-card {
       position: relative;
@@ -236,8 +237,8 @@
       padding: 0.55rem;
       border-radius: 10px;
       border: 1px solid var(--border);
-      background: rgba(139, 92, 246, 0.12);
-      color: #C4B5FD;
+      background: rgba(201,166,107, 0.12);
+      color: #E6D3A8;
       font-weight: 700;
       font-size: 0.82rem;
       cursor: pointer;
@@ -256,7 +257,7 @@
     .tut-dim {
       position: fixed;
       inset: 0;
-      background: rgba(4, 4, 12, 0.82);
+      background: rgba(12,8,5, 0.82);
       display: none;
       pointer-events: none;
     }
@@ -264,8 +265,8 @@
     .tut-spot {
       position: fixed;
       border-radius: 14px;
-      box-shadow: 0 0 0 9999px rgba(4, 4, 12, 0.82);
-      border: 2px solid rgba(167, 139, 250, 0.85);
+      box-shadow: 0 0 0 9999px rgba(12,8,5, 0.82);
+      border: 2px solid rgba(217,190,134, 0.85);
       display: none;
       transition: top 0.35s cubic-bezier(.4,0,.2,1),
                   left 0.35s cubic-bezier(.4,0,.2,1),
@@ -278,8 +279,8 @@
       animation: tut-pulse 2.2s ease-in-out infinite;
     }
     @keyframes tut-pulse {
-      0%, 100% { border-color: rgba(167, 139, 250, 0.85); box-shadow: 0 0 0 9999px rgba(4, 4, 12, 0.82); }
-      50% { border-color: rgba(236, 72, 153, 0.95); box-shadow: 0 0 0 9999px rgba(4, 4, 12, 0.82), 0 0 18px rgba(139, 92, 246, 0.35); }
+      0%, 100% { border-color: rgba(217,190,134, 0.85); box-shadow: 0 0 0 9999px rgba(12,8,5, 0.82); }
+      50% { border-color: rgba(142,42,51, 0.95); box-shadow: 0 0 0 9999px rgba(12,8,5, 0.82), 0 0 18px rgba(201,166,107, 0.35); }
     }
     .tut-card {
       position: fixed;
@@ -310,7 +311,7 @@
     .tut-text {
       font-size: 0.88rem;
       line-height: 1.65;
-      color: #B8B8D0;
+      color: #CDBFA8;
       margin-bottom: 1rem;
     }
     .tut-nav {
@@ -331,7 +332,7 @@
       cursor: pointer;
       transition: border-color 0.2s, background 0.2s, color 0.2s;
     }
-    .tut-btn:hover { border-color: var(--primary); color: #C4B5FD; }
+    .tut-btn:hover { border-color: var(--primary); color: #E6D3A8; }
     .tut-btn:disabled { opacity: 0.35; cursor: default; }
     .tut-btn.tut-next {
       background: var(--grad);
@@ -344,7 +345,7 @@
       color: var(--muted);
       border-color: transparent;
     }
-    .tut-btn.tut-skip:hover { color: #A78BFA; }
+    .tut-btn.tut-skip:hover { color: #D9BE86; }
     body.tut-active .tut-card { transition: none; }
 
     .home-mark { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 10px 34px rgba(110,26,31,.35); margin-bottom: .2rem; }
@@ -367,10 +368,10 @@
     }
     .new-proj:hover {
       border-color: var(--primary);
-      color: #A78BFA;
-      background: rgba(139,92,246,.07);
+      color: #D9BE86;
+      background: rgba(201,166,107,.07);
       transform: scale(1.04);
-      box-shadow: 0 0 50px rgba(139,92,246,.14);
+      box-shadow: 0 0 50px rgba(201,166,107,.14);
     }
     .np-icon { font-size: 2.8rem; display: block; margin-bottom: 0.6rem; }
     .np-lbl  { font-size: 1rem; font-weight: 700; letter-spacing: 0.05em; }
@@ -386,16 +387,16 @@
       padding: 1.1rem 2.5rem;
       text-align: center;
       cursor: pointer;
-      color: #C4B5FD;
-      background: rgba(139,92,246,.12);
+      color: #E6D3A8;
+      background: rgba(201,166,107,.12);
       transition: all 0.25s cubic-bezier(.4,0,.2,1);
       display: none;
     }
     .resume-proj.on { display: block; }
     .resume-proj:hover {
-      background: rgba(139,92,246,.22);
+      background: rgba(201,166,107,.22);
       transform: scale(1.03);
-      box-shadow: 0 0 40px rgba(139,92,246,.18);
+      box-shadow: 0 0 40px rgba(201,166,107,.18);
     }
     .rp-lbl { font-size: 0.95rem; font-weight: 700; }
     .rp-sub { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; }
@@ -460,7 +461,7 @@
       cursor: pointer;
       transition: all .18s;
     }
-    .share-btn:hover { border-color: var(--second); color: #F9A8D4; }
+    .share-btn:hover { border-color: var(--second); color: #E0B3A8; }
     .share-btn:disabled { opacity: .3; cursor: not-allowed; }
     .share-btn.hidden { display: none; }
     .dl-btn:hover { opacity: .86; transform: scale(1.04); }
@@ -468,8 +469,8 @@
 
     /* Aspect ratio panel */
     .ar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.55rem; }
-    .fx-sec { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted, #8a8aa3); margin: .9rem 0 .5rem; display: flex; justify-content: space-between; }
-    .fx-val { color: #A78BFA; letter-spacing: 0; }
+    .fx-sec { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted, #A89B88); margin: .9rem 0 .5rem; display: flex; justify-content: space-between; }
+    .fx-val { color: #D9BE86; letter-spacing: 0; }
     .fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); gap: .5rem; }
     .fx-grid .ar-btn { min-height: 2.9rem; }
     .fx-range { width: 100%; accent-color: var(--primary); height: 2.4rem; }
@@ -484,8 +485,8 @@
       text-align: center;
       transition: all .18s;
     }
-    .ar-btn:hover { border-color: var(--primary); color: #A78BFA; }
-    .ar-btn.on { border-color: var(--second); background: rgba(236,72,153,.12); color: #F9A8D4; }
+    .ar-btn:hover { border-color: var(--primary); color: #D9BE86; }
+    .ar-btn.on { border-color: var(--second); background: rgba(142,42,51,.12); color: #E0B3A8; }
     .ar-icon { font-size: 1.35rem; display: block; margin-bottom: 0.25rem; }
     .ar-lbl { font-size: 0.72rem; font-weight: 700; line-height: 1.3; }
     .ar-sub { font-size: 0.62rem; color: var(--muted); margin-top: 0.2rem; display: block; }
@@ -507,7 +508,7 @@
       cursor: pointer;
       transition: all .18s;
     }
-    .back-btn:hover { border-color: var(--primary); color: #C4B5FD; }
+    .back-btn:hover { border-color: var(--primary); color: #E6D3A8; }
     .save-hint {
       font-size: 0.68rem;
       color: var(--muted);
@@ -515,7 +516,7 @@
       transition: opacity .25s, color .25s;
     }
     .save-hint.on { opacity: 1; color: #86EFAC; }
-    .save-hint.saving.on { color: #C4B5FD; }
+    .save-hint.saving.on { color: #E6D3A8; }
     .save-hint.err.on { color: #FCA5A5; }
 
     /* Canvas area */
@@ -537,7 +538,7 @@
     #cv {
       display: block;
       border-radius: 8px;
-      box-shadow: 0 0 0 1px rgba(139,92,246,.12), 0 0 60px rgba(139,92,246,.10);
+      box-shadow: 0 0 0 1px rgba(201,166,107,.12), 0 0 60px rgba(201,166,107,.10);
     }
 
     /* Overlay sits exactly over canvas */
@@ -552,7 +553,7 @@
     .text-box {
       position: absolute;
       border: 2px dashed rgba(255,255,255,0.55);
-      box-shadow: 0 0 0 1px rgba(139,92,246,0.5);
+      box-shadow: 0 0 0 1px rgba(201,166,107,0.5);
       cursor: move;
       pointer-events: all;
       touch-action: none;
@@ -568,12 +569,12 @@
       box-shadow: 0 0 0 2px rgba(255,215,0,0.35), 0 0 0 1px rgba(255,215,0,0.5);
     }
     .text-box.signature-box {
-      border-color: rgba(236, 72, 153, 0.45);
-      box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.35);
+      border-color: rgba(142,42,51, 0.45);
+      box-shadow: 0 0 0 1px rgba(142,42,51, 0.35);
     }
     .text-box.signature-box.editing {
-      border-color: #EC4899;
-      box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.35), 0 0 0 1px rgba(236, 72, 153, 0.5);
+      border-color: #8E2A33;
+      box-shadow: 0 0 0 2px rgba(142,42,51, 0.35), 0 0 0 1px rgba(142,42,51, 0.5);
     }
     /* Resize handles */
     .rh {
@@ -602,7 +603,7 @@
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0,0,0,0.75);
-      color: #C4B5FD;
+      color: #E6D3A8;
       font-size: 0.68rem;
       padding: 2px 7px;
       border-radius: 4px;
@@ -632,7 +633,7 @@
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0,0,0,0.75);
-      color: #F9A8D4;
+      color: #E0B3A8;
       font-size: 0.68rem;
       padding: 2px 7px;
       border-radius: 4px;
@@ -649,11 +650,11 @@
       align-items: center; justify-content: center;
       gap: 0.5rem;
       pointer-events: none;
-      color: #2A2A45;
+      color: #3E2F26;
     }
     .cv-hint-icon  { font-size: 3rem; }
     .cv-hint-text  { font-size: 0.9rem; line-height: 1.8; text-align: center; }
-    .cv-hint-text em { color: #3A3A60; font-style: normal; }
+    .cv-hint-text em { color: #564134; font-style: normal; }
 
     /* Toolbar — faixa única estilo editor (ícone + rótulo por botão) */
     .toolbar {
@@ -721,7 +722,7 @@
       white-space: nowrap;
       padding: 0.35rem 0.45rem;
       border-radius: 7px;
-      background: rgba(236, 72, 153, 0.14);
+      background: rgba(142,42,51, 0.14);
       flex-shrink: 0;
       min-height: 52px;
     }
@@ -766,16 +767,16 @@
     }
     .tb:hover {
       border-color: var(--primary);
-      color: #A78BFA;
-      background: rgba(139, 92, 246, 0.1);
+      color: #D9BE86;
+      background: rgba(201,166,107, 0.1);
     }
     .tb.on {
       border-color: var(--primary);
-      background: rgba(139, 92, 246, 0.2);
-      color: #C4B5FD;
-      box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.25);
+      background: rgba(201,166,107, 0.2);
+      color: #E6D3A8;
+      box-shadow: 0 0 0 1px rgba(201,166,107, 0.25);
     }
-    #text-tb.on { border-color: var(--second); background: rgba(236, 72, 153, 0.14); color: #F9A8D4; }
+    #text-tb.on { border-color: var(--second); background: rgba(142,42,51, 0.14); color: #E0B3A8; }
 
     /* Mobile: sub-faixa em linha própria abaixo */
     @media (max-width: 720px) {
@@ -847,7 +848,7 @@
       cursor: pointer;
       transition: all .18s;
     }
-    .leg-preset:hover { border-color: var(--primary); color: #A78BFA; }
+    .leg-preset:hover { border-color: var(--primary); color: #D9BE86; }
 
     /* Inline text editor inside the text-box overlay */
     #tb-edit, #tb-edit-2 {
@@ -874,7 +875,7 @@
     /* Editing state: highlight border */
     #text-box.editing, .text-box.editing {
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(139,92,246,0.35), 0 0 0 1px rgba(139,92,246,0.5);
+      box-shadow: 0 0 0 2px rgba(201,166,107,0.35), 0 0 0 1px rgba(201,166,107,0.5);
     }
 
     /* ═══════════════════════════════
@@ -953,7 +954,7 @@
       width: 22px; height: 22px; border-radius: 50%;
       background: var(--grad);
       cursor: pointer;
-      box-shadow: 0 2px 10px rgba(139,92,246,.4);
+      box-shadow: 0 2px 10px rgba(201,166,107,.4);
     }
     .spd-labels {
       display: flex; justify-content: space-between;
@@ -984,8 +985,8 @@
       cursor: pointer;
       transition: all .18s;
     }
-    .font-item:hover { border-color: var(--primary); background: rgba(139,92,246,.08); }
-    .font-item.sel { border-color: var(--primary); background: rgba(139,92,246,.16); }
+    .font-item:hover { border-color: var(--primary); background: rgba(201,166,107,.08); }
+    .font-item.sel { border-color: var(--primary); background: rgba(201,166,107,.16); }
     .font-nm { font-size: 0.68rem; color: var(--muted); margin-bottom: 0.2rem; font-weight: 600; }
     .font-pv { font-size: 1.2rem; color: var(--text); line-height: 1.4; }
 
@@ -1001,8 +1002,8 @@
       font-size: 1rem; font-weight: 600;
       transition: all .18s; text-align: center;
     }
-    .fmt-btn:hover { border-color: var(--primary); color: #A78BFA; }
-    .fmt-btn.on { border-color: var(--second); background: rgba(236,72,153,.15); color: #F9A8D4; }
+    .fmt-btn:hover { border-color: var(--primary); color: #D9BE86; }
+    .fmt-btn.on { border-color: var(--second); background: rgba(142,42,51,.15); color: #E0B3A8; }
     .fmt-btn.disabled,
     .fmt-btn:disabled {
       opacity: 0.35;
@@ -1030,7 +1031,7 @@
       cursor: pointer;
       transition: all .18s;
     }
-    .fs-step:hover { border-color: var(--primary); color: #A78BFA; }
+    .fs-step:hover { border-color: var(--primary); color: #D9BE86; }
     .fs-mode-row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
     .fs-mode-btn {
       flex: 1;
@@ -1044,7 +1045,7 @@
       cursor: pointer;
       transition: all .18s;
     }
-    .fs-mode-btn.on { border-color: var(--primary); background: rgba(139,92,246,.16); color: #C4B5FD; }
+    .fs-mode-btn.on { border-color: var(--primary); background: rgba(201,166,107,.16); color: #E6D3A8; }
     #text-fs-range:disabled { opacity: 0.35; cursor: not-allowed; }
 
     /* Text panel */
@@ -1130,7 +1131,7 @@
     .rec-sub   { font-size: 0.85rem; color: var(--muted); }
     .rec-track {
       width: 300px; height: 5px;
-      background: #1A1A30; border-radius: 3px; overflow: hidden;
+      background: #2B1F17; border-radius: 3px; overflow: hidden;
     }
     .rec-fill {
       height: 100%;
@@ -1150,12 +1151,12 @@
       transition: all .18s;
       text-align: left;
     }
-    .tpl-card:hover { border-color: var(--primary); background: rgba(139,92,246,.08); }
-    .tpl-card.sel { border-color: var(--second); background: rgba(236,72,153,.12); }
+    .tpl-card:hover { border-color: var(--primary); background: rgba(201,166,107,.08); }
+    .tpl-card.sel { border-color: var(--second); background: rgba(142,42,51,.12); }
     .tpl-preview {
       width: 42px; height: 56px; flex-shrink: 0;
       border-radius: 6px;
-      background: #12121f;
+      background: #1C1510;
       border: 1px solid var(--border);
       position: relative; overflow: hidden;
     }
@@ -1200,7 +1201,7 @@
       display: none;
       flex-direction: column;
       background: #141418;
-      border-top: 1px solid #2a2a32;
+      border-top: 1px solid #2D2726;
       flex-shrink: 0;
     }
     .timeline-bar.on { display: flex; }
@@ -1230,7 +1231,7 @@
     .tl-clear {
       border: 1px solid rgba(252, 165, 165, 0.35);
       background: rgba(127, 29, 29, 0.22);
-      color: #fca5a5;
+      color: #FCA5A5;
       border-radius: 6px;
       padding: 0.22rem 0.5rem;
       font-size: 0.62rem;
@@ -1241,12 +1242,12 @@
     }
     .tl-clear:hover {
       background: rgba(127, 29, 29, 0.42);
-      border-color: #fca5a5;
+      border-color: #FCA5A5;
     }
     .tl-img-title {
       font-size: 0.65rem;
       font-weight: 800;
-      color: #A78BFA;
+      color: #D9BE86;
       letter-spacing: 0.05em;
       text-transform: uppercase;
     }
@@ -1269,15 +1270,15 @@
       padding: 0.15rem 0.1rem;
       min-height: 72px;
       scrollbar-width: thin;
-      scrollbar-color: #3f3f46 transparent;
+      scrollbar-color: #3F3939 transparent;
     }
     .tl-img-insert {
       position: absolute;
       top: 4px;
       bottom: 4px;
       width: 2px;
-      background: #f472b6;
-      box-shadow: 0 0 8px rgba(244,114,182,.8);
+      background: #C98A86;
+      box-shadow: 0 0 8px rgba(201,138,134,.8);
       pointer-events: none;
       z-index: 5;
       display: none;
@@ -1288,13 +1289,13 @@
       align-items: center;
       gap: 0.45rem;
       padding: 0.35rem 0 0.15rem;
-      border-top: 1px solid #222228;
+      border-top: 1px solid #241F1F;
       margin-top: 0.15rem;
     }
     .tl-img-time {
       font-size: 0.62rem;
       font-variant-numeric: tabular-nums;
-      color: #C4B5FD;
+      color: #E6D3A8;
       min-width: 2.4rem;
       flex-shrink: 0;
     }
@@ -1304,7 +1305,7 @@
       flex: 1;
       height: 8px;
       border-radius: 999px;
-      background: #1a1a28;
+      background: #241C17;
       cursor: pointer;
       touch-action: none;
     }
@@ -1313,7 +1314,7 @@
       left: 0; top: 0; bottom: 0;
       width: 0%;
       border-radius: inherit;
-      background: linear-gradient(90deg, #8B5CF6, #EC4899);
+      background: linear-gradient(90deg, #C9A66B, #8E2A33);
       pointer-events: none;
     }
     .tl-img-progress-knob {
@@ -1335,16 +1336,16 @@
       width: 56px;
       border-radius: 8px;
       border: 2px solid rgba(255,255,255,.08);
-      background: #12121c;
+      background: #191410;
       cursor: grab;
       touch-action: none;
       user-select: none;
       overflow: hidden;
     }
-    .tl-slide:hover { border-color: rgba(139,92,246,.4); }
+    .tl-slide:hover { border-color: rgba(201,166,107,.4); }
     .tl-slide.sel {
       border-color: var(--primary);
-      box-shadow: 0 0 0 1px rgba(139,92,246,.3), 0 4px 12px rgba(139,92,246,.2);
+      box-shadow: 0 0 0 1px rgba(201,166,107,.3), 0 4px 12px rgba(201,166,107,.2);
     }
     .tl-slide.dragging { opacity: 0.45; cursor: grabbing; }
     .tl-slide-thumb {
@@ -1368,7 +1369,7 @@
     }
     .tl-slide-dur {
       font-size: 0.52rem;
-      color: #C4B5FD;
+      color: #E6D3A8;
       font-variant-numeric: tabular-nums;
     }
     .tl-img-dur {
@@ -1376,7 +1377,7 @@
       align-items: center;
       gap: 0.55rem;
       padding-top: 0.15rem;
-      border-top: 1px solid #222228;
+      border-top: 1px solid #241F1F;
     }
     .tl-img-dur label {
       font-size: 0.68rem;
@@ -1436,7 +1437,7 @@
       align-items: center;
       gap: 0.5rem;
       padding: 0.4rem 0.65rem;
-      border-bottom: 1px solid #222228;
+      border-bottom: 1px solid #241F1F;
       flex-shrink: 0;
     }
     .tl-vid-name {
@@ -1458,18 +1459,18 @@
       width: 72px;
       flex-shrink: 0;
       background: #101014;
-      border-right: 1px solid #2a2a32;
+      border-right: 1px solid #2D2726;
       display: flex;
       flex-direction: column;
     }
-    .tl-side-spacer { height: 24px; border-bottom: 1px solid #2a2a32; flex-shrink: 0; }
+    .tl-side-spacer { height: 24px; border-bottom: 1px solid #2D2726; flex-shrink: 0; }
     .tl-side-row {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.35rem;
-      border-bottom: 1px solid #222228;
-      color: #6b7280;
+      border-bottom: 1px solid #241F1F;
+      color: #8C7F6E;
       font-size: 0.62rem;
       flex-shrink: 0;
     }
@@ -1492,7 +1493,7 @@
       position: relative;
       cursor: pointer;
       scrollbar-width: thin;
-      scrollbar-color: #3f3f46 transparent;
+      scrollbar-color: #3F3939 transparent;
     }
     .tl-canvas {
       position: relative;
@@ -1503,23 +1504,23 @@
     .tl-ruler {
       position: relative;
       height: 24px;
-      background: #18181c;
-      border-bottom: 1px solid #2a2a32;
+      background: #18181C;
+      border-bottom: 1px solid #2D2726;
     }
     .tl-ruler-mark {
       position: absolute;
       top: 0;
       height: 100%;
-      border-left: 1px solid #3f3f46;
+      border-left: 1px solid #3F3939;
       padding-left: 4px;
       font-size: 0.58rem;
-      color: #9ca3af;
+      color: #A89B88;
       font-variant-numeric: tabular-nums;
       pointer-events: none;
       white-space: nowrap;
     }
     .tl-ruler-mark.minor {
-      border-left-color: #2a2a32;
+      border-left-color: #2D2726;
       height: 40%;
       top: 60%;
     }
@@ -1528,17 +1529,17 @@
       position: relative;
       display: flex;
       align-items: stretch;
-      border-bottom: 1px solid #1f1f24;
+      border-bottom: 1px solid #1F1F24;
       min-height: 0;
     }
     .tl-row.hidden { display: none; }
     .tl-row-text { height: 34px; background: #121216; }
     .tl-row-media {
       height: 58px;
-      background: #0e0e12;
+      background: #0E0E12;
       gap: 0;
     }
-    .tl-row-audio { height: 42px; background: #0c0c10; }
+    .tl-row-audio { height: 42px; background: #0C0C10; }
 
     .tl-playhead {
       position: absolute;
@@ -1566,8 +1567,8 @@
       top: 24px;
       bottom: 0;
       width: 2px;
-      background: #f472b6;
-      box-shadow: 0 0 8px rgba(244,114,182,.8);
+      background: #C98A86;
+      box-shadow: 0 0 8px rgba(201,138,134,.8);
       z-index: 15;
       pointer-events: none;
       display: none;
@@ -1581,7 +1582,7 @@
       bottom: 4px;
       left: 0;
       border-radius: 4px;
-      background: linear-gradient(180deg, #7c2d12 0%, #5c1d0e 100%);
+      background: linear-gradient(180deg, #7C2D12 0%, #5C1D0E 100%);
       border: 1px solid rgba(251,146,60,.35);
       display: flex;
       align-items: center;
@@ -1593,7 +1594,7 @@
     .tl-tclip-ic { font-size: 0.7rem; opacity: 0.9; }
     .tl-tclip-txt {
       font-size: 0.62rem;
-      color: #fed7aa;
+      color: #FED7AA;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1612,7 +1613,7 @@
       user-select: none;
       border: 2px solid transparent;
       box-sizing: border-box;
-      background: #134e4a;
+      background: #434111;
     }
     .tl-clip:hover { border-color: rgba(45,212,191,.35); }
     .tl-clip.sel {
@@ -1668,7 +1669,7 @@
       border-radius: 3px;
       border: none;
       background: rgba(0,0,0,.65);
-      color: #fca5a5;
+      color: #FCA5A5;
       font-size: 0.65rem;
       line-height: 1;
       cursor: pointer;
@@ -1689,7 +1690,7 @@
       left: 0;
       border-radius: 4px;
       overflow: hidden;
-      background: #1e3a5f;
+      background: #56411B;
       border: 1px solid rgba(59,130,246,.25);
     }
     .tl-audio-block canvas {
@@ -1706,21 +1707,21 @@
       justify-content: center;
       padding-top: 28px;
       background: #101014;
-      border-left: 1px solid #2a2a32;
+      border-left: 1px solid #2D2726;
     }
     .tl-add {
       width: 28px;
       height: 28px;
       border-radius: 6px;
-      border: 1px solid #3f3f46;
-      background: #1c1c22;
-      color: #a78bfa;
+      border: 1px solid #3F3939;
+      background: #1F1A19;
+      color: #D9BE86;
       font-size: 1rem;
       line-height: 1;
       cursor: pointer;
       transition: background .15s, border-color .15s;
     }
-    .tl-add:hover { background: #2a2a32; border-color: #8b5cf6; }
+    .tl-add:hover { background: #2D2726; border-color: #C9A66B; }
     .tl-add.hidden { visibility: hidden; pointer-events: none; }
 
     /* Audio panel */
@@ -1730,7 +1731,7 @@
       padding: 0.6rem 0;
       word-break: break-all;
     }
-    .aud-file.on { color: #C4B5FD; }
+    .aud-file.on { color: #E6D3A8; }
     .aud-btn-row { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
     .aud-btn {
       flex: 1;
@@ -1743,7 +1744,7 @@
       cursor: pointer;
       transition: all .18s;
     }
-    .aud-btn:hover { border-color: var(--primary); color: #A78BFA; }
+    .aud-btn:hover { border-color: var(--primary); color: #D9BE86; }
     .aud-btn.danger:hover { border-color: #EF4444; color: #FCA5A5; }
     .aud-note {
       font-size: 0.72rem;
@@ -1779,6 +1780,7 @@
       body.tut-active #img-count { display: inline; }
     }
   </style>
+  <link rel="stylesheet" href="assets/poesia.css">
 </head>
 <body>
 
@@ -1800,14 +1802,15 @@
           title="Tutorial — aprenda a usar o app" aria-label="Abrir tutorial">?</button>
   <img class="home-mark" src="icons/icon.svg" alt="" width="84" height="84">
   <div class="home-brand">VersoVivo</div>
+  <div class="home-tag">versos em movimento</div>
   <div class="home-actions">
     <div class="resume-proj" id="resume-proj" onclick="openEditor(true)">
       <div class="rp-lbl">↩ Continuar projeto</div>
       <div class="rp-sub" id="resume-sub"></div>
     </div>
     <div class="new-proj" onclick="startNewProject()">
-      <span class="np-icon">✦</span>
-      <span class="np-lbl">Novo Projeto +</span>
+      <span class="np-icon"><svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M20.500 3.500c-8.500 0-13.500 5-14.500 13.500L3.500 20.500l3.500-1.500c8.500-1 13.500-6 13.500-15.500z"/><path d="M6 18.500L15 9.500"/></svg></span>
+      <span class="np-lbl">Novo poema</span>
     </div>
   </div>
   <div class="home-hint">
@@ -1883,7 +1886,7 @@
     </div>
 
     <div class="cv-hint" id="cv-hint" data-tut="dica-canvas">
-      <div class="cv-hint-icon">🎬</div>
+      <div class="cv-hint-icon"><svg viewBox="0 0 24 24" class="ico" aria-hidden="true"><path d="M20.500 3.500c-8.500 0-13.500 5-14.500 13.500L3.500 20.500l3.500-1.500c8.500-1 13.500-6 13.500-15.500z"/><path d="M6 18.500L15 9.500"/></svg></div>
       <div class="cv-hint-text">
         Clique em <em>"Imagens"</em> para múltiplas fotos<br>
         ou <em>"Vídeo"</em> para um único vídeo de fundo.
@@ -1973,31 +1976,31 @@
   <div class="toolbar">
     <div class="main-tb">
       <button class="tb" id="play-tb" data-tut="play" onclick="togglePlay()">
-        <span class="ic" id="play-ic">⏸</span>
+        <span class="ic" id="play-ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></span>
         <span class="tb-lbl" id="play-lbl">Pausar</span>
       </button>
       <button class="tb" data-tut="imagens" onclick="pickImages()">
-        <span class="ic">🖼</span>
+        <span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5 4.5 4"/></svg></span>
         <span class="tb-lbl">Imagens</span>
       </button>
       <button class="tb" data-tut="video" onclick="pickVideo()">
-        <span class="ic">🎬</span>
+        <span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4.5" width="16" height="15" rx="1.5"/><path d="M8 4.5v15M16 4.5v15M4 9h4M4 15h4M16 9h4M16 15h4"/></svg></span>
         <span class="tb-lbl">Vídeo</span>
       </button>
       <button class="tb" data-tut="proporcao" onclick="openPanel('ar')">
-        <span class="ic">⬒</span>
+        <span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="3.5" width="11" height="17" rx="1"/><path d="M3 8V4.5A1.5 1.5 0 014.500 3H8M21 16v3.500a1.500 1.500 0 01-1.500 1.500H16"/></svg></span>
         <span class="tb-lbl">Proporção</span>
       </button>
       <button class="tb" data-tut="layout" onclick="openPanel('tp')">
-        <span class="ic">▦</span>
+        <span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 10h16M10 10v10"/></svg></span>
         <span class="tb-lbl">Layout</span>
       </button>
       <button class="tb" data-tut="efeitos" onclick="openPanel('fx')">
-        <span class="ic">✨</span>
+        <span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3.500l1.800 5.200 5.200 1.800-5.200 1.800L11 17.500l-1.800-5.200L4 10.500l5.200-1.800z"/><path d="M18.500 16v4M16.500 18h4"/></svg></span>
         <span class="tb-lbl">Efeitos</span>
       </button>
       <button class="tb" id="audio-tb" data-tut="musica" onclick="openPanel('ap')">
-        <span class="ic">♫</span>
+        <span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v12"/><circle cx="6.500" cy="18" r="2.500"/><circle cx="16.500" cy="16" r="2.500"/></svg></span>
         <span class="tb-lbl">Música</span>
       </button>
       <button class="tb" id="text-tb" data-tut="texto" onclick="toggleTextMenu()">
@@ -2037,7 +2040,7 @@
           <span class="tb-lbl" id="align-lbl">Centro</span>
         </button>
         <button class="tb" data-tut="cores" onclick="openPanel('cp')">
-          <span class="ic">🎨</span>
+          <span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.500c3.300 4.100 5.600 6.700 5.600 9.700a5.600 5.600 0 11-11.200 0c0-3 2.300-5.600 5.600-9.700z"/></svg></span>
           <span class="tb-lbl">Cor</span>
         </button>
         <button class="tb" data-tut="legibilidade" onclick="openPanel('lp')">
@@ -2105,7 +2108,7 @@
 <div class="panel" id="ar">
   <div class="panel-drag"></div>
   <div class="panel-head">
-    <h3>⬒ Proporção do Vídeo</h3>
+    <h3>Proporção do vídeo</h3>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
   <div class="ar-grid">
@@ -2131,7 +2134,7 @@
 <div class="panel" id="fx" style="max-height:72vh;overflow-y:auto;">
   <div class="panel-drag"></div>
   <div class="panel-head">
-    <h3>✨ Efeitos</h3>
+    <h3>Efeitos</h3>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
   <div class="fx-sec">Transição entre imagens</div>
@@ -2163,7 +2166,7 @@
   <div class="panel-drag"></div>
   <div class="panel-head">
     <div>
-      <h3>Aa Fontes de Texto</h3>
+      <h3>Fontes de texto</h3>
       <div class="panel-target" id="panel-target-fp">Verso</div>
     </div>
     <button class="panel-x" onclick="closePanels()">✕</button>
@@ -2180,7 +2183,7 @@
   <div class="panel-drag"></div>
   <div class="panel-head">
     <div>
-      <h3>A± Tamanho da Fonte</h3>
+      <h3>Tamanho da fonte</h3>
       <div class="panel-target" id="panel-target-ts">Verso</div>
     </div>
     <button class="panel-x" onclick="closePanels()">✕</button>
@@ -2235,7 +2238,7 @@
 <div class="panel" id="tp">
   <div class="panel-drag"></div>
   <div class="panel-head">
-    <h3>▦ Templates de Layout</h3>
+    <h3>Modelos de layout</h3>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
   <div class="tpl-grid" id="tpl-grid"></div>
@@ -2245,7 +2248,7 @@
 <div class="panel" id="ap">
   <div class="panel-drag"></div>
   <div class="panel-head">
-    <h3>♫ Música de Fundo</h3>
+    <h3>Música de fundo</h3>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
   <div class="aud-btn-row" data-tut="musica-arquivo">
@@ -2267,7 +2270,7 @@
 <div class="panel" id="lp">
   <div class="panel-drag"></div>
   <div class="panel-head">
-    <h3>◐ Legibilidade do Texto</h3>
+    <h3>Legibilidade do texto</h3>
     <button class="panel-x" onclick="closePanels()">✕</button>
   </div>
   <div class="leg-presets" data-tut="leg-presets">
@@ -2297,7 +2300,7 @@
   <div class="panel-drag"></div>
   <div class="panel-head">
     <div>
-      <h3>🎨 Cor do Texto</h3>
+      <h3>Cor do texto</h3>
       <div class="panel-target" id="panel-target-cp">Verso</div>
     </div>
     <button class="panel-x" onclick="closePanels()">✕</button>
@@ -2312,7 +2315,7 @@
 <!-- Recording overlay -->
 <div id="rec-ov">
   <div class="rec-dot"></div>
-  <div class="rec-title">Gerando seu vídeo...</div>
+  <div class="rec-title">Gerando seu poema…</div>
   <div class="rec-sub" id="rec-sub">Preparando...</div>
   <div class="rec-track"><div class="rec-fill" id="rec-fill"></div></div>
 </div>

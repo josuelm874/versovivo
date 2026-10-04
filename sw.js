@@ -1,10 +1,19 @@
-const CACHE = 'versovivo-v15';
+const CACHE = 'versovivo-v16';
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
+  './assets/poesia.css',
+  './assets/fonts/fonts.css',
+  './assets/fonts/CormorantGaramond-YrEtImSo.woff2',
+  './assets/fonts/CormorantGaramond-hyjYqXtK.woff2',
+  './assets/fonts/EBGaramond-8QL99U6g.woff2',
+  './assets/fonts/EBGaramond-K5GR1SDk.woff2',
+  './assets/fonts/PlayfairDisplay-PXDTzYgA.woff2',
+  './assets/fonts/PlayfairDisplay-iTXtHA-Q.woff2',
+  './assets/fonts/Sacramento-UG4C0f_Q.woff2',
   './js/export-video.js',
   './js/image-enhance.js',
   './js/versovivo.js',

@@ -701,7 +701,9 @@ function loadVideoFromBlob(blob, name) {
 }
 
 function updatePlayUI(playing) {
-  document.getElementById('play-ic').textContent  = playing ? '⏸' : '▶';
+  document.getElementById('play-ic').innerHTML = playing
+    ? '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>'
+    : '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>';
   document.getElementById('play-lbl').textContent = playing ? 'Pausar' : 'Retomar';
   document.getElementById('play-tb').classList.toggle('on', !playing);
 }
@@ -818,7 +820,7 @@ function showEnhanceProgress(msg, pct) {
   const sub = document.getElementById('rec-sub');
   const fill = document.getElementById('rec-fill');
   const title = ov?.querySelector('.rec-title');
-  if (title) title.textContent = 'Melhorando fotos...';
+  if (title) title.textContent = 'Afinando suas fotos…';
   if (sub) sub.textContent = msg;
   if (fill) fill.style.width = (pct ?? 0) + '%';
   ov?.classList.add('on');
@@ -827,7 +829,7 @@ function showEnhanceProgress(msg, pct) {
 function hideEnhanceProgress() {
   const ov = document.getElementById('rec-ov');
   const title = ov?.querySelector('.rec-title');
-  if (title) title.textContent = 'Gerando seu vídeo...';
+  if (title) title.textContent = 'Gerando seu poema…';
   ov?.classList.remove('on');
   document.getElementById('rec-fill').style.width = '0%';
 }
@@ -2089,9 +2091,9 @@ function skipBoot() {
       bCtx.rect(cx - fullW * 0.55, 0, fullW * 1.1 * progress, H);
       bCtx.clip();
       const grad = bCtx.createLinearGradient(cx - fullW / 2, 0, cx + fullW / 2, 0);
-      grad.addColorStop(0, '#c084fc');
-      grad.addColorStop(0.5, '#e879f9');
-      grad.addColorStop(1, '#f472b6');
+      grad.addColorStop(0, '#F3E3BC');
+      grad.addColorStop(0.5, '#D9BE86');
+      grad.addColorStop(1, '#B78F4E');
       bCtx.fillStyle = grad;
       bCtx.fillText(WORD, cx, cy);
       bCtx.restore();
@@ -2108,8 +2110,8 @@ function skipBoot() {
       const arcOffset = Math.sin(progress * Math.PI) * (fontSize * 0.08);
       const penY = cy - arcOffset;
       const halo = bCtx.createRadialGradient(penX, penY, 0, penX, penY, fontSize * 0.55);
-      halo.addColorStop(0, 'rgba(232, 121, 249, 0.22)');
-      halo.addColorStop(1, 'rgba(192, 132, 252, 0)');
+      halo.addColorStop(0, 'rgba(227, 201, 143, 0.26)');
+      halo.addColorStop(1, 'rgba(201, 166, 107, 0)');
       bCtx.beginPath();
       bCtx.arc(penX, penY, fontSize * 0.55, 0, Math.PI * 2);
       bCtx.fillStyle = halo;

@@ -49,6 +49,7 @@ O **VersoVivo** é um editor visual de vídeos poéticos que roda diretamente no
 | **3.1** | Assinatura (@), barra de progresso, save atômico, WYSIWYG export |
 | **3.2** | Export vídeo frame-accurate, SW v7, ícones PNG, smoke tests, módulo export |
 | **3.5** | Melhoria automática de fotos (upscale + nitidez local, sem site externo) |
+| **4.1** | Design "Tinta & Papel" (tema poético escuro + pergaminho, Cormorant/EB Garamond self-hosted, `assets/poesia.css`) — spec em `docs/superpowers/specs/2026-10-04-tinta-e-papel-design.md` |
 | **4.0** | APK Android (Capacitor), salvar/compartilhar nativo, painel Efeitos, export de vídeo em tempo real no celular — ver `docs/RELATORIO-TESTES.md` |
 
 ---
