@@ -1,9 +1,10 @@
-const CACHE = 'versovivo-v14';
+const CACHE = 'versovivo-v15';
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
   './js/export-video.js',
   './js/image-enhance.js',
   './js/versovivo.js',

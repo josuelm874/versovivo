@@ -347,6 +347,7 @@
     .tut-btn.tut-skip:hover { color: #A78BFA; }
     body.tut-active .tut-card { transition: none; }
 
+    .home-mark { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 10px 34px rgba(110,26,31,.35); margin-bottom: .2rem; }
     .home-brand {
       font-size: 2.2rem; font-weight: 900;
       background: var(--grad);
@@ -1797,6 +1798,7 @@
           onclick="openSettings()" title="Configurações" aria-label="Abrir configurações">⚙</button>
   <button type="button" class="home-help" id="home-help" onclick="startTutorial()"
           title="Tutorial — aprenda a usar o app" aria-label="Abrir tutorial">?</button>
+  <img class="home-mark" src="icons/icon.svg" alt="" width="84" height="84">
   <div class="home-brand">VersoVivo</div>
   <div class="home-actions">
     <div class="resume-proj" id="resume-proj" onclick="openEditor(true)">
