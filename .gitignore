@@ -9,3 +9,8 @@ android/local.properties
 *.apk
 test-media/*
 !test-media/CREDITS.md
+qa-results/
+
+android/keystore.properties
+*.jks
+*.keystore

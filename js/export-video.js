@@ -122,25 +122,40 @@
     await seekVideoTo(video, 0);
     try { await video.play(); } catch (_) { /* autoplay bloqueado: segue com o quadro atual */ }
     const start = performance.now();
+    const finished = () => (shouldStop && shouldStop()) || video.ended || video.currentTime >= videoSec - 0.03 || performance.now() - start > exportMs + 4000;
+    const draw = () => {
+      renderFrame(rctx, RW, RH);
+      const pct = Math.min(100, (video.currentTime / videoSec) * 100);
+      if (report) report(pct, `Gravando vídeo · ${Math.round(pct)}% (tempo real)`);
+    };
     await new Promise(resolve => {
-      const step = () => {
-        const el = performance.now() - start;
-        if ((shouldStop && shouldStop()) || video.ended || video.currentTime >= videoSec - 0.03 || el > exportMs + 4000) {
-          resolve();
-          return;
-        }
-        renderFrame(rctx, RW, RH);
-        const pct = Math.min(100, (video.currentTime / videoSec) * 100);
-        if (report) report(pct, `Gravando vídeo · ${Math.round(pct)}% (tempo real)`);
+      let done = false;
+      const end = () => { if (!done) { done = true; clearInterval(guard); resolve(); } };
+      // salvaguarda: se os callbacks pararem (vídeo pausou/terminou), encerra por tempo
+      const guard = setInterval(() => { if (finished()) end(); }, 250);
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        // desenha UMA vez por quadro novo do vídeo (30/s) — com rAF seriam 60/s, metade desperdiçada
+        const onFrame = () => { if (done) return; if (finished()) { end(); return; } draw(); video.requestVideoFrameCallback(onFrame); };
+        video.requestVideoFrameCallback(onFrame);
+      } else {
+        let last = 0; const frameMs = 1000 / EXPORT_FPS;
+        const step = (now) => {
+          if (done) return;
+          if (finished()) { end(); return; }
+          if (now - last >= frameMs - 4) { last = now; draw(); }
+          requestAnimationFrame(step);
+        };
         requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
+      }
     });
     video.pause();
   }
 
   /**
-   * Slideshow de imagens: um frame a cada 1/FPS com tempo real — evita perda por rAF descontrolado.
+   * Slideshow de imagens. O MediaRecorder grava em relógio real, então o CONTEÚDO também segue o relógio real:
+   * o tempo do quadro = tempo decorrido (não "índice × 33 ms"). Assim a duração do arquivo é exatamente a configurada,
+   * não há câmera lenta quando o aparelho renderiza devagar (quadros são pulados, nunca atrasam a linha do tempo)
+   * e o áudio (também em tempo real) fica em sincronia.
    */
   async function renderSlideshowFrameAccurateLoop(opts) {
     const {
@@ -153,21 +168,23 @@
     } = opts;
 
     const frameMs = 1000 / EXPORT_FPS;
-    const totalFrames = Math.max(1, Math.ceil(totalMs / frameMs));
-
-    for (let f = 0; f < totalFrames; f++) {
+    const t0 = performance.now();
+    let f = 0;
+    for (;;) {
       if (shouldStop && shouldStop()) break;
-      const elapsed = Math.min(Math.max(0, totalMs - 1), f * frameMs);
-      const fade = getFadeAt(elapsed);
-      renderFrame(rctx, RW, RH, fade);
-      const pct = ((f + 1) / totalFrames) * 100;
+      const now = performance.now() - t0;
+      if (now >= totalMs) break;
+      const elapsed = Math.min(Math.max(0, totalMs - 1), now);
+      renderFrame(rctx, RW, RH, getFadeAt(elapsed));
+      f++;
+      const pct = Math.min(100, (elapsed / totalMs) * 100);
       if (report) {
-        report(
-          pct,
-          `Gravando slideshow · ${Math.round(pct)}% · frame ${f + 1}/${totalFrames}`
-        );
+        report(pct, `Gravando slideshow · ${Math.round(pct)}% · ${(elapsed / 1000).toFixed(1)}s de ${(totalMs / 1000).toFixed(0)}s`);
       }
-      await new Promise(r => setTimeout(r, frameMs));
+      // dorme até o próximo limite de quadro (se atrasado, segue direto: quadros são pulados, o tempo não)
+      const next = (Math.floor((performance.now() - t0) / frameMs) + 1) * frameMs;
+      const wait = next - (performance.now() - t0);
+      await new Promise(r => setTimeout(r, Math.max(0, wait)));
     }
   }
 

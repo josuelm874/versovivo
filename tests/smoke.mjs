@@ -128,8 +128,8 @@ check('melhorar qualidade nas configurações', () => {
   assert(!html.includes('id="tl-enhance"'), 'toggle legado removido da timeline');
 });
 
-check('SW cache v17', () => {
-  assert(sw.includes('versovivo-v17'), 'versão cache desatualizada');
+check('SW cache v19', () => {
+  assert(sw.includes('versovivo-v19'), 'versão cache desatualizada');
 });
 
 check('SW cache inclui scripts principais', () => {

@@ -199,3 +199,10 @@ body::after {
 .tut-text { font-size: 1.02rem; line-height: 1.5; }
 .tut-nav, .tut-nav-main { gap: .35rem; min-width: 0; }
 .tut-btn { white-space: nowrap; padding: .55rem .65rem; font-size: .95rem; }
+
+/* ── Acessibilidade: alvos de toque ≥ 44px e fonte ≥ 11px ───────────── */
+.text-target-hint { font-size: .72rem; }
+.back-btn, .topbar-actions .dl-btn, .topbar-actions .share-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.tl-img-add, .tl-add { min-width: 44px; min-height: 44px; }
+.tl-img-clear, .tl-clear { min-height: 44px; display: inline-flex; align-items: center; }
+.tl-del { width: 32px; height: 32px; top: 0; right: 0; font-size: .95rem; background: radial-gradient(circle at center, rgba(0,0,0,.72) 0 10px, transparent 10.5px); } /* alvo 32px (denso, evita exclusão acidental); badge visual de 20px */

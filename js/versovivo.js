@@ -966,6 +966,32 @@ async function startNewProject() {
   openEditor(false);
 }
 
+// ════════════════════════════════════
+//  VOLTAR (botão do Android / gesto): fecha painel -> sai da edição de texto -> volta ao início.
+//  Uma única entrada de histórico enquanto o editor está aberto; na tela inicial o Voltar sai do app.
+// ════════════════════════════════════
+let _editorEntry = false;
+let _skipPop = 0;
+function navEnterEditor() {
+  if (_editorEntry) return;
+  try { history.pushState({ vv: 'editor' }, ''); _editorEntry = true; } catch (_) { /* sem History API */ }
+}
+function navLeaveEditor() {
+  if (!_editorEntry) return;
+  _editorEntry = false; _skipPop++;
+  try { history.back(); } catch (_) { _skipPop--; }
+}
+window.addEventListener('popstate', async () => {
+  if (_skipPop > 0) { _skipPop--; return; }
+  if (!_editorEntry) return;                                   // tela inicial: o sistema fecha o app
+  const stay = () => { try { history.pushState({ vv: 'editor' }, ''); } catch (_) {} };
+  if (document.querySelector('.panel.on')) { stay(); closePanels(); return; }
+  if (TBOX.editing || TBOX2.editing || TBOX3.editing) { stay(); exitAnyEditMode(); return; }
+  _editorEntry = false;                                        // a entrada já foi consumida pelo Voltar
+  await goHome();
+  if (document.getElementById('editor').classList.contains('on')) { stay(); _editorEntry = true; } // usuário cancelou o "Voltar ao início?"
+});
+
 async function goHome() {
   if (!_tutActive && hasEditorContent()) {
     if (!confirm('Voltar ao início? Seu progresso será salvo antes de sair.')) return;
@@ -976,6 +1002,7 @@ async function goHome() {
   showSaveHint('Salvando…', 'saving');
   await saveProject();
   _editorOpen = false;
+  navLeaveEditor();
   if (_audioEl) _audioEl.pause();
   document.getElementById('editor').classList.remove('on');
   document.getElementById('home').classList.add('on');
@@ -1658,6 +1685,22 @@ function clearAllImages(skipConfirm = false) {
   markDirty();
 }
 
+const _thumbCache = new WeakMap();
+/** Miniatura em canvas (≈160 px): não depende do blob URL (que pode ter sido revogado) e evita decodificar fotos enormes. */
+function thumbFor(img) {
+  let u = _thumbCache.get(img);
+  if (u) return u;
+  try {
+    const nw = img.naturalWidth || img.width || 1, nh = img.naturalHeight || img.height || 1;
+    const c = document.createElement('canvas');
+    c.height = 160; c.width = Math.max(1, Math.round(160 * nw / nh));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    u = c.toDataURL('image/jpeg', 0.72);
+  } catch (_) { u = img.src; }
+  _thumbCache.set(img, u);
+  return u;
+}
+
 function buildImageSlideClip(img, i) {
   const item = document.createElement('div');
   item.className = 'tl-slide' + (i === S.idx ? ' sel' : '');
@@ -1666,7 +1709,7 @@ function buildImageSlideClip(img, i) {
   const thumb = document.createElement('img');
   thumb.className = 'tl-slide-thumb';
   thumb.alt = 'Imagem ' + (i + 1);
-  thumb.src = img.src;
+  thumb.src = thumbFor(img);
   thumb.draggable = false;
 
   const foot = document.createElement('div');
@@ -2031,6 +2074,7 @@ function removeLegacySpeedUI() {
 
 function openEditor(resume = false) {
   removeLegacySpeedUI();
+  navEnterEditor();
   document.getElementById('home').classList.remove('on');
   document.getElementById('editor').classList.add('on');
   _editorOpen = true;
@@ -2924,17 +2968,7 @@ function loadImages(files, append = false) {
     return;
   }
 
-  _imageBlobs = Array.from(files);
-  if (S.videoEl) { S.videoEl.pause(); URL.revokeObjectURL(S.videoEl.src); S.videoEl = null; S.videoReady = false; }
-  _videoBlob = null;
-  _videoFileName = '';
-  _videoThumbDataUrl = null;
-
-  _imgBlobUrls.forEach(u => URL.revokeObjectURL(u));
-  _imgBlobUrls = [];
-
-  S.mode = 'images';
-  S.imgs = []; S.idx = 0; S.prevIdx = 0; S.fadeProgress = 1; S.elapsed = 0; S.playMs = 0; S.slideClockMs = 0;
+  // Não destrói o projeto atual antes de validar: se nenhum arquivo for imagem válida, tudo permanece.
   loadImageFilesIntoSlideshow(Array.from(files), 0);
 }
 
@@ -3012,6 +3046,13 @@ function completeImageImport(paired, failed, append) {
       _imgBlobUrls.push(p.url);
     });
   } else {
+    // substituição confirmada (há ao menos 1 imagem válida): agora sim descarta o estado anterior
+    if (S.videoEl) { S.videoEl.pause(); URL.revokeObjectURL(S.videoEl.src); S.videoEl = null; S.videoReady = false; }
+    _videoBlob = null;
+    _videoFileName = '';
+    _videoThumbDataUrl = null;
+    _imgBlobUrls.forEach(u => URL.revokeObjectURL(u));
+    S.mode = 'images';
     S.imgs = paired.map(p => p.img);
     _imageBlobs = paired.map(p => p.blob);
     _imgBlobUrls = paired.map(p => p.url);
