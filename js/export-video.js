@@ -122,31 +122,19 @@
     await seekVideoTo(video, 0);
     try { await video.play(); } catch (_) { /* autoplay bloqueado: segue com o quadro atual */ }
     const start = performance.now();
-    const finished = () => (shouldStop && shouldStop()) || video.ended || video.currentTime >= videoSec - 0.03 || performance.now() - start > exportMs + 4000;
-    const draw = () => {
-      renderFrame(rctx, RW, RH);
-      const pct = Math.min(100, (video.currentTime / videoSec) * 100);
-      if (report) report(pct, `Gravando vídeo · ${Math.round(pct)}% (tempo real)`);
-    };
     await new Promise(resolve => {
-      let done = false;
-      const end = () => { if (!done) { done = true; clearInterval(guard); resolve(); } };
-      // salvaguarda: se os callbacks pararem (vídeo pausou/terminou), encerra por tempo
-      const guard = setInterval(() => { if (finished()) end(); }, 250);
-      if (typeof video.requestVideoFrameCallback === 'function') {
-        // desenha UMA vez por quadro novo do vídeo (30/s) — com rAF seriam 60/s, metade desperdiçada
-        const onFrame = () => { if (done) return; if (finished()) { end(); return; } draw(); video.requestVideoFrameCallback(onFrame); };
-        video.requestVideoFrameCallback(onFrame);
-      } else {
-        let last = 0; const frameMs = 1000 / EXPORT_FPS;
-        const step = (now) => {
-          if (done) return;
-          if (finished()) { end(); return; }
-          if (now - last >= frameMs - 4) { last = now; draw(); }
-          requestAnimationFrame(step);
-        };
+      const step = () => {
+        const el = performance.now() - start;
+        if ((shouldStop && shouldStop()) || video.ended || video.currentTime >= videoSec - 0.03 || el > exportMs + 4000) {
+          resolve();
+          return;
+        }
+        renderFrame(rctx, RW, RH);
+        const pct = Math.min(100, (video.currentTime / videoSec) * 100);
+        if (report) report(pct, `Gravando vídeo · ${Math.round(pct)}% (tempo real)`);
         requestAnimationFrame(step);
-      }
+      };
+      requestAnimationFrame(step);
     });
     video.pause();
   }

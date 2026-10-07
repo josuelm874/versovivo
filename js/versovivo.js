@@ -499,13 +499,20 @@ async function saveProject() {
 async function clearStoredProject() {
   localStorage.removeItem(LS_KEY);
   try {
-    const db = await openDB();
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction('blobs', 'readwrite');
-      tx.objectStore('blobs').clear();
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
+    // nunca trava "Novo poema": se o IndexedDB demorar/abortar, segue em frente (o rascunho já saiu do localStorage)
+    await Promise.race([
+      (async () => {
+        const db = await openDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction('blobs', 'readwrite');
+          tx.objectStore('blobs').clear();
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        });
+      })(),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
   } catch (_) { /* ignore */ }
   refreshHomeResume();
 }
@@ -970,27 +977,16 @@ async function startNewProject() {
 //  VOLTAR (botão do Android / gesto): fecha painel -> sai da edição de texto -> volta ao início.
 //  Uma única entrada de histórico enquanto o editor está aberto; na tela inicial o Voltar sai do app.
 // ════════════════════════════════════
-let _editorEntry = false;
-let _skipPop = 0;
-function navEnterEditor() {
-  if (_editorEntry) return;
-  try { history.pushState({ vv: 'editor' }, ''); _editorEntry = true; } catch (_) { /* sem History API */ }
-}
-function navLeaveEditor() {
-  if (!_editorEntry) return;
-  _editorEntry = false; _skipPop++;
-  try { history.back(); } catch (_) { _skipPop--; }
-}
-window.addEventListener('popstate', async () => {
-  if (_skipPop > 0) { _skipPop--; return; }
-  if (!_editorEntry) return;                                   // tela inicial: o sistema fecha o app
-  const stay = () => { try { history.pushState({ vv: 'editor' }, ''); } catch (_) {} };
-  if (document.querySelector('.panel.on')) { stay(); closePanels(); return; }
-  if (TBOX.editing || TBOX2.editing || TBOX3.editing) { stay(); exitAnyEditMode(); return; }
-  _editorEntry = false;                                        // a entrada já foi consumida pelo Voltar
-  await goHome();
-  if (document.getElementById('editor').classList.contains('on')) { stay(); _editorEntry = true; } // usuário cancelou o "Voltar ao início?"
-});
+// O shell nativo (MainActivity) chama window.vvHandleBack(); true = tratado aqui, false = o Android sai do app.
+window.vvHandleBack = function () {
+  if (!_editorOpen) return false;                                // tela inicial: o sistema fecha o app
+  if (document.querySelector('.panel.on')) { closePanels(); return true; }
+  if (TBOX.editing || TBOX2.editing || TBOX3.editing) { exitAnyEditMode(); return true; }
+  goHome();
+  return true;
+};
+function navEnterEditor() {}
+function navLeaveEditor() {}
 
 async function goHome() {
   if (!_tutActive && hasEditorContent()) {

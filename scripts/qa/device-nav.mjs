@@ -47,7 +47,7 @@ check('botão ← do app volta ao início', !s.editor && s.home, s);
 // 5) tela inicial: Voltar fecha o app (comportamento padrão Android)
 const wins = sh('adb shell dumpsys window windows').split(String.fromCharCode(10)).filter((l) => /Window #\d+.*(Alert|Dialog|Popup)/i.test(l)).map((l) => l.trim().slice(0, 110)); console.log('janelas de diálogo antes do Voltar final:', JSON.stringify(wins));
 await b.close().catch(() => {}); await sleep(500); // sem depurador conectado (usuário real)
-await back(); await sleep(3500); // animação de saída (Voltar preditivo) leva ~2 s
+await back(); await sleep(3500); if (process.env.DUMP) console.log(sh('adb logcat -d').split(String.fromCharCode(10)).filter((l) => /MIUIInput|VVBack|CoreBack|OnBackInvoked|ImeInsets|InputMethod|IMM/i.test(l)).map((l) => l.slice(0, 200)).join(String.fromCharCode(10))); // animação de saída (Voltar preditivo) leva ~2 s
 const f = focus();
 check('Voltar na tela inicial sai do app', !/app\.versovivo\.editor/.test(f), f);
 fs.writeFileSync('qa-results/nav/result.json', JSON.stringify(res, null, 1));

@@ -34,17 +34,16 @@ public class MainActivity extends BridgeActivity {
         c.setAppearanceLightStatusBars(false);      // app escuro: ícones claros
         c.setAppearanceLightNavigationBars(false);
 
-        // Android 16 / target 36: Voltar preditivo não chama onBackPressed(). Encaminha ao histórico da WebView
-        // (o app empilha uma entrada enquanto o editor está aberto); sem histórico, manda o app para segundo plano (padrão do Android).
+        // Android 16 / target 36: Voltar preditivo não chama onBackPressed(). Encaminha ao JS (vvHandleBack):
+        // fecha painel / sai da edição / volta ao início; se nada a tratar, manda o app para segundo plano.
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 WebView wv = getBridge() != null ? getBridge().getWebView() : null;
-                if (wv != null && wv.canGoBack()) {
-                    wv.goBack();
-                } else {
-                    moveTaskToBack(true); // padrão do Android para a atividade raiz: sai do app mantendo o estado
-                }
+                if (wv == null) { moveTaskToBack(true); return; }
+                wv.evaluateJavascript("(function(){try{return window.vvHandleBack?window.vvHandleBack():false}catch(e){return false}})()", value -> {
+                    if (!"true".equals(value)) moveTaskToBack(true); // padrão do Android para a atividade raiz
+                });
             }
         });
     }
