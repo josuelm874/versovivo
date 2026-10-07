@@ -87,7 +87,7 @@ check('bitrate adaptativo no export', () => {
 });
 
 check('export vídeo usa VVExport.renderFrameAccurateLoop', () => {
-  assert(readMainScript().includes('VVExport.renderFrameAccurateLoop'), 'export frame-accurate');
+  assert(readMainScript().includes('VVExport.renderFrameAccurateLoop') && readMainScript().includes('VVExport.renderRealtimeLoop'), 'export frame-accurate');
 });
 
 check('applyLayoutTemplate reseta TBOX2/TBOX3', () => {
@@ -128,8 +128,8 @@ check('melhorar qualidade nas configurações', () => {
   assert(!html.includes('id="tl-enhance"'), 'toggle legado removido da timeline');
 });
 
-check('SW cache v14', () => {
-  assert(sw.includes('versovivo-v14'), 'versão cache desatualizada');
+check('SW cache v19', () => {
+  assert(sw.includes('versovivo-v19'), 'versão cache desatualizada');
 });
 
 check('SW cache inclui scripts principais', () => {
@@ -176,6 +176,25 @@ check('tutorial cobre todos data-tut do editor', () => {
 
 check('assets tutorial existem', () => {
   assert(fs.existsSync(path.join(ROOT, 'assets/tutorial/demo-1.jpg')), 'demo-1.jpg');
+});
+
+check('efeitos: painel, funções e persistência', () => {
+  const js = readMainScript();
+  assert(html.includes('id="fx"'), 'painel fx');
+  for (const k of ['slide', 'zoom', 'wipe']) assert(html.includes(`data-fx-tr="${k}"`), `transição ${k}`);
+  for (const k of ['warm', 'cool', 'bw', 'vintage', 'vivid']) assert(html.includes(`data-fx-filter="${k}"`), `filtro ${k}`);
+  for (const f of ['setTransition', 'setFilter', 'setDim', 'setKenBurns', 'syncFxUI']) assert(js.includes(`function ${f}`), f);
+  assert(/transition: S\.transition, filter: S\.filter, dim: S\.dim/.test(js), 'save meta');
+  assert(js.includes("S.transition = FX_TRANSITIONS.includes(meta.transition)"), 'load meta');
+});
+
+check('intro estilo hello: sem opção de pular, regra de 1 min', () => {
+  const intro = fs.readFileSync(path.join(ROOT, 'js/intro.js'), 'utf8');
+  assert(!/boot-skip|skipBoot|Pular intro/i.test(html + readMainScript()), 'opção de pular ainda existe');
+  assert(html.includes('js/intro.js') && html.includes('js/intro-data.js'), 'scripts da intro');
+  assert(/AWAY_MS\s*=\s*60_?000/.test(intro), 'limite de 1 min');
+  assert(fs.existsSync(path.join(ROOT, 'assets/intro/versovivo.png')), 'png da palavra');
+  assert(readMainScript().includes('VVIntro.init'), 'init da intro');
 });
 
 check('build meta vv-build presente', () => {

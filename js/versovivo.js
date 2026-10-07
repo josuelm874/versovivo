@@ -28,6 +28,15 @@ const FONT_SIZE_EDIT_DEFAULT = 16;
 const TEXT_BOX_PAD = 16;
 const TEXT_LINE_HEIGHT = 1.4;
 const FADE_MS   = 750;
+const FX_TRANSITIONS = ['fade', 'slide', 'zoom', 'wipe'];
+const FX_FILTERS = {
+  none: 'none',
+  warm: 'sepia(0.25) saturate(1.2) hue-rotate(-8deg) brightness(1.03)',
+  cool: 'saturate(1.1) hue-rotate(12deg) brightness(1.02) contrast(1.03)',
+  bw: 'grayscale(1) contrast(1.1)',
+  vintage: 'sepia(0.5) contrast(0.92) brightness(1.05) saturate(0.85)',
+  vivid: 'saturate(1.45) contrast(1.1)',
+};
 const KEN_BURNS_ZOOM = 0.045;
 const TRANS_IN_ZOOM  = 0.035;
 const DB_NAME   = 'versovivo';
@@ -131,6 +140,10 @@ const S = {
   aspectKey: '9:16',
   enhancePhotos: true,
   enhanceVideos: true,
+  transition: 'fade',      // fade | slide | zoom | wipe
+  filter: 'none',          // none | warm | cool | bw | vintage | vivid
+  dim: 0,                  // escurecer mídia p/ legibilidade (0–0.6)
+  kenBurns: true,
   text2: '',
   titleFont: 'Cinzel',
   titleBold: true,
@@ -253,8 +266,6 @@ const BOX_DEFS = {
 };
 
 const STYLE_TARGET_LABELS = { main: 'Verso', title: 'Título', signature: 'Assinatura' };
-let _bootFinish = null;
-let _bootRaf = null;
 
 const ALIGN_NAMES = ['center','right','left'];
 const ALIGN_ICS   = ['☰','➡','⬅'];
@@ -311,6 +322,7 @@ function getProjectMeta() {
     aspectKey: S.aspectKey || '9:16',
     enhancePhotos: S.enhancePhotos !== false,
     enhanceVideos: S.enhanceVideos !== false,
+    transition: S.transition, filter: S.filter, dim: S.dim, kenBurns: S.kenBurns !== false,
     text2: S.text2,
     titleFont: S.titleFont,
     titleBold: S.titleBold,
@@ -365,6 +377,10 @@ function applyProjectMeta(meta) {
   S.aspectKey = meta.aspectKey || '9:16';
   S.enhancePhotos = meta.enhancePhotos !== false;
   S.enhanceVideos = meta.enhanceVideos !== false;
+  S.transition = FX_TRANSITIONS.includes(meta.transition) ? meta.transition : 'fade';
+  S.filter = FX_FILTERS[meta.filter] ? meta.filter : 'none';
+  S.dim = Math.max(0, Math.min(0.6, Number(meta.dim) || 0));
+  S.kenBurns = meta.kenBurns !== false;
   S.text2 = meta.text2 ?? '';
   S.titleFont = meta.titleFont ?? 'Cinzel';
   S.titleBold = meta.titleBold !== undefined ? !!meta.titleBold : true;
@@ -483,13 +499,20 @@ async function saveProject() {
 async function clearStoredProject() {
   localStorage.removeItem(LS_KEY);
   try {
-    const db = await openDB();
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction('blobs', 'readwrite');
-      tx.objectStore('blobs').clear();
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error);
-    });
+    // nunca trava "Novo poema": se o IndexedDB demorar/abortar, segue em frente (o rascunho já saiu do localStorage)
+    await Promise.race([
+      (async () => {
+        const db = await openDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction('blobs', 'readwrite');
+          tx.objectStore('blobs').clear();
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        });
+      })(),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
   } catch (_) { /* ignore */ }
   refreshHomeResume();
 }
@@ -636,7 +659,7 @@ function loadImagesFromBlobs(blobs) {
         S.playing = true;
         updatePlayUI(true);
         document.getElementById('img-count').textContent =
-          `· ${S.imgs.length} imagem${S.imgs.length > 1 ? 'ns' : ''}${failed ? ` (${failed} falhou)` : ''}`;
+          `· ${S.imgs.length} ${S.imgs.length > 1 ? 'imagens' : 'imagem'}${failed ? ` (${failed} falhou)` : ''}`;
         updateDownloadBtn();
         if (TBOX.show || TBOX2.show || TBOX3.show) syncTextBox();
         rebuildTimeline();
@@ -683,7 +706,9 @@ function loadVideoFromBlob(blob, name) {
 }
 
 function updatePlayUI(playing) {
-  document.getElementById('play-ic').textContent  = playing ? '⏸' : '▶';
+  document.getElementById('play-ic').innerHTML = playing
+    ? '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>'
+    : '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>';
   document.getElementById('play-lbl').textContent = playing ? 'Pausar' : 'Retomar';
   document.getElementById('play-tb').classList.toggle('on', !playing);
 }
@@ -694,7 +719,7 @@ function updateDownloadBtn() {
   document.getElementById('dl-btn').disabled = !hasMedia;
   const shareBtn = document.getElementById('share-btn');
   if (shareBtn) {
-    const canShare = typeof navigator.share === 'function';
+    const canShare = typeof navigator.share === 'function' || isNativeApp();
     shareBtn.classList.toggle('hidden', !canShare);
     shareBtn.disabled = !hasMedia;
   }
@@ -777,8 +802,11 @@ function onSettingsEnhanceChange() {
   }
 }
 
+// Nitidez JS custa ~80 ms/quadro a 1080x1920 num celular: desligada durante export em tempo real.
+let _skipFrameSharpen = false;
+
 function maybeSharpenVideoFrame(tctx, w, h, src) {
-  if (!S.enhanceVideos || !globalThis.VVEnhance?.applyFrameSharpen || !src) return;
+  if (_skipFrameSharpen || !S.enhanceVideos || !globalThis.VVEnhance?.applyFrameSharpen || !src) return;
   const sw = src.videoWidth || 0;
   const sh = src.videoHeight || 0;
   if (!sw || !sh) return;
@@ -797,7 +825,7 @@ function showEnhanceProgress(msg, pct) {
   const sub = document.getElementById('rec-sub');
   const fill = document.getElementById('rec-fill');
   const title = ov?.querySelector('.rec-title');
-  if (title) title.textContent = 'Melhorando fotos...';
+  if (title) title.textContent = 'Afinando suas fotos…';
   if (sub) sub.textContent = msg;
   if (fill) fill.style.width = (pct ?? 0) + '%';
   ov?.classList.add('on');
@@ -806,7 +834,7 @@ function showEnhanceProgress(msg, pct) {
 function hideEnhanceProgress() {
   const ov = document.getElementById('rec-ov');
   const title = ov?.querySelector('.rec-title');
-  if (title) title.textContent = 'Gerando seu vídeo...';
+  if (title) title.textContent = 'Gerando seu poema…';
   ov?.classList.remove('on');
   document.getElementById('rec-fill').style.width = '0%';
 }
@@ -945,6 +973,21 @@ async function startNewProject() {
   openEditor(false);
 }
 
+// ════════════════════════════════════
+//  VOLTAR (botão do Android / gesto): fecha painel -> sai da edição de texto -> volta ao início.
+//  Uma única entrada de histórico enquanto o editor está aberto; na tela inicial o Voltar sai do app.
+// ════════════════════════════════════
+// O shell nativo (MainActivity) chama window.vvHandleBack(); true = tratado aqui, false = o Android sai do app.
+window.vvHandleBack = function () {
+  if (!_editorOpen) return false;                                // tela inicial: o sistema fecha o app
+  if (document.querySelector('.panel.on')) { closePanels(); return true; }
+  if (TBOX.editing || TBOX2.editing || TBOX3.editing) { exitAnyEditMode(); return true; }
+  goHome();
+  return true;
+};
+function navEnterEditor() {}
+function navLeaveEditor() {}
+
 async function goHome() {
   if (!_tutActive && hasEditorContent()) {
     if (!confirm('Voltar ao início? Seu progresso será salvo antes de sair.')) return;
@@ -955,6 +998,7 @@ async function goHome() {
   showSaveHint('Salvando…', 'saving');
   await saveProject();
   _editorOpen = false;
+  navLeaveEditor();
   if (_audioEl) _audioEl.pause();
   document.getElementById('editor').classList.remove('on');
   document.getElementById('home').classList.add('on');
@@ -1637,6 +1681,22 @@ function clearAllImages(skipConfirm = false) {
   markDirty();
 }
 
+const _thumbCache = new WeakMap();
+/** Miniatura em canvas (≈160 px): não depende do blob URL (que pode ter sido revogado) e evita decodificar fotos enormes. */
+function thumbFor(img) {
+  let u = _thumbCache.get(img);
+  if (u) return u;
+  try {
+    const nw = img.naturalWidth || img.width || 1, nh = img.naturalHeight || img.height || 1;
+    const c = document.createElement('canvas');
+    c.height = 160; c.width = Math.max(1, Math.round(160 * nw / nh));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    u = c.toDataURL('image/jpeg', 0.72);
+  } catch (_) { u = img.src; }
+  _thumbCache.set(img, u);
+  return u;
+}
+
 function buildImageSlideClip(img, i) {
   const item = document.createElement('div');
   item.className = 'tl-slide' + (i === S.idx ? ' sel' : '');
@@ -1645,7 +1705,7 @@ function buildImageSlideClip(img, i) {
   const thumb = document.createElement('img');
   thumb.className = 'tl-slide-thumb';
   thumb.alt = 'Imagem ' + (i + 1);
-  thumb.src = img.src;
+  thumb.src = thumbFor(img);
   thumb.draggable = false;
 
   const foot = document.createElement('div');
@@ -1684,7 +1744,7 @@ function syncImagesTimelineUI() {
 
   if (totalEl) {
     totalEl.textContent = n
-      ? `Vídeo: ${formatTimelineTime(durSec)} · ${n} imagem${n > 1 ? 'ns' : ''} · ${S.speed.toFixed(1)}s cada`
+      ? `Vídeo: ${formatTimelineTime(durSec)} · ${n} ${n > 1 ? 'imagens' : 'imagem'} · ${S.speed.toFixed(1)}s cada`
       : 'Vídeo: 0:00';
   }
   if (durVal) durVal.textContent = durSec + 's';
@@ -1867,7 +1927,7 @@ function removeSlide(i) {
 
   syncSlideshowFromPlayMs();
   document.getElementById('img-count').textContent =
-    `· ${S.imgs.length} imagem${S.imgs.length > 1 ? 'ns' : ''}`;
+    `· ${S.imgs.length} ${S.imgs.length > 1 ? 'imagens' : 'imagem'}`;
   rebuildTimeline();
   markDirty();
 }
@@ -1980,151 +2040,16 @@ function syncAudioPlayback() {
 }
 
 // ════════════════════════════════════
-//  BOOT ANIMATION — iPhone "Hello" canvas writing effect
+//  INTRO — estilo "hello" do iPhone (js/intro.js). Sem opção de pular;
+//  toca na abertura e ao voltar após > 1 min fora do app.
 // ════════════════════════════════════
 function finishBoot() {
-  const bootEl = document.getElementById('boot');
-  if (_bootRaf) cancelAnimationFrame(_bootRaf);
-  _bootRaf = null;
-  if (bootEl) bootEl.style.display = 'none';
   document.getElementById('home').classList.add('on');
   refreshHomeResume();
   removeLegacySpeedUI();
 }
 
-function skipBoot() {
-  const remember = document.getElementById('boot-skip-check');
-  if (remember && remember.checked) localStorage.setItem('versovivo-skip-boot', '1');
-  finishBoot();
-}
-
-(function bootHello() {
-  const bootEl  = document.getElementById('boot');
-  const skipBtn = document.getElementById('boot-skip');
-  const rememberEl = document.getElementById('boot-remember');
-
-  if (localStorage.getItem('versovivo-skip-boot') === '1') {
-    finishBoot();
-    return;
-  }
-
-  const WORD        = 'VersoVivo';
-  const FONT_FAMILY = "'Sacramento', cursive";
-  const WRITE_START = 0.25;
-  const WRITE_DUR   = 2.0;
-  const HOLD_DUR    = 0.55;
-  const FADE_DUR    = 0.55;
-  const SUB_IN_AT   = 1.9;
-  const SUB_IN_DUR  = 0.45;
-  const TOTAL       = WRITE_START + WRITE_DUR + HOLD_DUR + FADE_DUR + 0.15;
-  const SKIP_AT     = 0.8;
-
-  const subEl   = document.getElementById('boot-sub');
-  const bCv     = document.getElementById('boot-canvas');
-  const bCtx    = bCv.getContext('2d');
-  let startTime = null;
-
-  function resize() {
-    bCv.width  = bootEl.offsetWidth  || window.innerWidth;
-    bCv.height = bootEl.offsetHeight || window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  function writeEase(t) {
-    const s = t * t * (3 - 2 * t);
-    const undulate = 0.018 * Math.sin(t * Math.PI * 5);
-    return Math.min(1, Math.max(0, s + undulate));
-  }
-
-  function drawFrame(ts) {
-    if (!startTime) startTime = ts;
-    const elapsed = (ts - startTime) / 1000;
-
-    if (elapsed >= SKIP_AT) {
-      if (skipBtn) skipBtn.classList.add('on');
-      if (rememberEl) rememberEl.classList.add('on');
-    }
-
-    const W = bCv.width, H = bCv.height;
-    bCtx.clearRect(0, 0, W, H);
-    bCtx.fillStyle = getComputedStyle(document.documentElement)
-      .getPropertyValue('--bg').trim() || '#09090F';
-    bCtx.fillRect(0, 0, W, H);
-
-    const writeRaw = (elapsed - WRITE_START) / WRITE_DUR;
-    const writeT   = Math.min(1, Math.max(0, writeRaw));
-    const progress = writeEase(writeT);
-
-    if (writeT > 0) {
-      const fontSize = Math.min(W * 0.18, H * 0.22, 120);
-      bCtx.font = `${fontSize}px ${FONT_FAMILY}`;
-      bCtx.textAlign = 'center';
-      bCtx.textBaseline = 'middle';
-      const cx = W / 2, cy = H / 2;
-      const fullW = bCtx.measureText(WORD).width;
-      bCtx.save();
-      bCtx.beginPath();
-      bCtx.rect(cx - fullW * 0.55, 0, fullW * 1.1 * progress, H);
-      bCtx.clip();
-      const grad = bCtx.createLinearGradient(cx - fullW / 2, 0, cx + fullW / 2, 0);
-      grad.addColorStop(0, '#c084fc');
-      grad.addColorStop(0.5, '#e879f9');
-      grad.addColorStop(1, '#f472b6');
-      bCtx.fillStyle = grad;
-      bCtx.fillText(WORD, cx, cy);
-      bCtx.restore();
-    }
-
-    if (writeT > 0 && writeT < 1) {
-      const fontSize = Math.min(W * 0.18, H * 0.22, 120);
-      bCtx.font = `${fontSize}px ${FONT_FAMILY}`;
-      bCtx.textAlign = 'center';
-      bCtx.textBaseline = 'middle';
-      const cx = W / 2, cy = H / 2;
-      const fullW = bCtx.measureText(WORD).width;
-      const penX = (cx - fullW * 0.55) + fullW * 1.1 * progress;
-      const arcOffset = Math.sin(progress * Math.PI) * (fontSize * 0.08);
-      const penY = cy - arcOffset;
-      const halo = bCtx.createRadialGradient(penX, penY, 0, penX, penY, fontSize * 0.55);
-      halo.addColorStop(0, 'rgba(232, 121, 249, 0.22)');
-      halo.addColorStop(1, 'rgba(192, 132, 252, 0)');
-      bCtx.beginPath();
-      bCtx.arc(penX, penY, fontSize * 0.55, 0, Math.PI * 2);
-      bCtx.fillStyle = halo;
-      bCtx.fill();
-    }
-
-    const subProgress = Math.min(1, Math.max(0, (elapsed - SUB_IN_AT) / SUB_IN_DUR));
-    if (subEl) {
-      subEl.style.opacity = subProgress;
-      subEl.style.transform = `translateY(${(1 - subProgress) * 10}px)`;
-      subEl.style.top = (H / 2 + Math.min(W * 0.18, H * 0.22, 120) * 0.85) + 'px';
-    }
-
-    const fadeStart = WRITE_START + WRITE_DUR + HOLD_DUR;
-    const fadeT = Math.min(1, Math.max(0, (elapsed - fadeStart) / FADE_DUR));
-    if (fadeT > 0) {
-      bCtx.globalAlpha = fadeT;
-      bCtx.fillStyle = getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg').trim() || '#09090F';
-      bCtx.fillRect(0, 0, W, H);
-      bCtx.globalAlpha = 1;
-      if (subEl) subEl.style.opacity = Math.max(0, subProgress - fadeT);
-    }
-
-    if (elapsed >= TOTAL) {
-      finishBoot();
-      return;
-    }
-
-    _bootRaf = requestAnimationFrame(drawFrame);
-  }
-
-  document.fonts.ready.then(() => {
-    _bootRaf = requestAnimationFrame(drawFrame);
-  });
-})();
+VVIntro.init({ showHome: finishBoot, isBusy: () => S.recording });
 
 // ════════════════════════════════════
 //  CANVAS SETUP
@@ -2145,6 +2070,7 @@ function removeLegacySpeedUI() {
 
 function openEditor(resume = false) {
   removeLegacySpeedUI();
+  navEnterEditor();
   document.getElementById('home').classList.remove('on');
   document.getElementById('editor').classList.add('on');
   _editorOpen = true;
@@ -2343,9 +2269,12 @@ function getPlaybackFadeState(playMs, totalMs, imgCount, slideMs) {
 
 function drawSlideLayer(tctx, w, h, src, holdT, alpha, incoming) {
   if (!src || alpha <= 0.004) return;
-  let zoom = 1 + KEN_BURNS_ZOOM * Math.max(0, Math.min(1, holdT));
-  if (incoming) zoom += TRANS_IN_ZOOM * (1 - Math.max(0, Math.min(1, holdT)));
-  else zoom += KEN_BURNS_ZOOM * 0.35;
+  let zoom = 1;
+  if (S.kenBurns !== false) {
+    zoom += KEN_BURNS_ZOOM * Math.max(0, Math.min(1, holdT));
+    if (incoming) zoom += TRANS_IN_ZOOM * (1 - Math.max(0, Math.min(1, holdT)));
+    else zoom += KEN_BURNS_ZOOM * 0.35;
+  }
   tctx.save();
   tctx.globalAlpha = alpha;
   drawMediaSource(tctx, w, h, src, zoom);
@@ -2362,12 +2291,46 @@ function drawSlideTransition(tctx, w, h, cur, prev, fadeT, holdT, prevHoldT) {
     drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
     return;
   }
-  drawSlideLayer(tctx, w, h, prev, prevHoldT, 1 - t, false);
-  drawSlideLayer(tctx, w, h, cur, holdT, t, true);
+  const kind = S.transition;
+  if (kind === 'slide') {
+    tctx.save(); tctx.translate(-t * w, 0);
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1, false);
+    tctx.restore();
+    tctx.save(); tctx.translate((1 - t) * w, 0);
+    drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
+    tctx.restore();
+  } else if (kind === 'zoom') {
+    drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
+    const k = 1 + 0.3 * t;
+    tctx.save(); tctx.translate(w / 2, h / 2); tctx.scale(k, k); tctx.translate(-w / 2, -h / 2);
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1 - t, false);
+    tctx.restore();
+  } else if (kind === 'wipe') {
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1, false);
+    tctx.save(); tctx.beginPath(); tctx.rect(0, 0, w * t, h); tctx.clip();
+    drawSlideLayer(tctx, w, h, cur, holdT, 1, true);
+    tctx.restore();
+  } else {
+    drawSlideLayer(tctx, w, h, prev, prevHoldT, 1 - t, false);
+    drawSlideLayer(tctx, w, h, cur, holdT, t, true);
+  }
 }
 
 // Draw the current media (image slideshow or video) with optional crossfade
 function drawMedia(tctx, w, h, opts = {}) {
+  tctx.save();
+  tctx.filter = FX_FILTERS[S.filter] || 'none';
+  drawMediaCore(tctx, w, h, opts);
+  tctx.restore();
+  if (S.dim > 0 && (S.mode === 'images' ? S.imgs.length : S.mode === 'video')) {
+    tctx.save();
+    tctx.fillStyle = `rgba(0,0,0,${S.dim})`;
+    tctx.fillRect(0, 0, w, h);
+    tctx.restore();
+  }
+}
+
+function drawMediaCore(tctx, w, h, opts = {}) {
   const idx     = opts.idx     !== undefined ? opts.idx     : S.idx;
   const prevIdx = opts.prevIdx !== undefined ? opts.prevIdx : S.prevIdx;
   const fadeT   = opts.fadeT   !== undefined ? opts.fadeT   : S.fadeProgress;
@@ -3001,17 +2964,7 @@ function loadImages(files, append = false) {
     return;
   }
 
-  _imageBlobs = Array.from(files);
-  if (S.videoEl) { S.videoEl.pause(); URL.revokeObjectURL(S.videoEl.src); S.videoEl = null; S.videoReady = false; }
-  _videoBlob = null;
-  _videoFileName = '';
-  _videoThumbDataUrl = null;
-
-  _imgBlobUrls.forEach(u => URL.revokeObjectURL(u));
-  _imgBlobUrls = [];
-
-  S.mode = 'images';
-  S.imgs = []; S.idx = 0; S.prevIdx = 0; S.fadeProgress = 1; S.elapsed = 0; S.playMs = 0; S.slideClockMs = 0;
+  // Não destrói o projeto atual antes de validar: se nenhum arquivo for imagem válida, tudo permanece.
   loadImageFilesIntoSlideshow(Array.from(files), 0);
 }
 
@@ -3089,6 +3042,13 @@ function completeImageImport(paired, failed, append) {
       _imgBlobUrls.push(p.url);
     });
   } else {
+    // substituição confirmada (há ao menos 1 imagem válida): agora sim descarta o estado anterior
+    if (S.videoEl) { S.videoEl.pause(); URL.revokeObjectURL(S.videoEl.src); S.videoEl = null; S.videoReady = false; }
+    _videoBlob = null;
+    _videoFileName = '';
+    _videoThumbDataUrl = null;
+    _imgBlobUrls.forEach(u => URL.revokeObjectURL(u));
+    S.mode = 'images';
     S.imgs = paired.map(p => p.img);
     _imageBlobs = paired.map(p => p.blob);
     _imgBlobUrls = paired.map(p => p.url);
@@ -3105,7 +3065,7 @@ function completeImageImport(paired, failed, append) {
   S.playing = true;
   updatePlayUI(true);
   document.getElementById('img-count').textContent =
-    `· ${S.imgs.length} imagem${S.imgs.length > 1 ? 'ns' : ''}${failed ? ` (${failed} falhou)` : ''}`;
+    `· ${S.imgs.length} ${S.imgs.length > 1 ? 'imagens' : 'imagem'}${failed ? ` (${failed} falhou)` : ''}`;
   updateDownloadBtn();
   markDirty();
   rebuildTimeline();
@@ -3211,6 +3171,7 @@ function setColor(hex) {
 // ════════════════════════════════════
 function openPanel(id) {
   closePanels();
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   document.getElementById('ov').classList.add('on');
   document.getElementById(id).classList.add('on');
   if (id === 'fp') buildFontPanel();
@@ -3220,7 +3181,23 @@ function openPanel(id) {
   if (id === 'tp') buildTemplatePanel();
   if (id === 'ap') syncAudioUI();
   if (id === 'ar') syncAspectUI();
+  if (id === 'fx') syncFxUI();
 }
+
+function syncFxUI() {
+  document.querySelectorAll('[data-fx-tr]').forEach(b => b.classList.toggle('on', b.dataset.fxTr === S.transition));
+  document.querySelectorAll('[data-fx-filter]').forEach(b => b.classList.toggle('on', b.dataset.fxFilter === S.filter));
+  const d = document.getElementById('fx-dim'), dv = document.getElementById('fx-dim-val');
+  if (d) d.value = Math.round(S.dim * 100);
+  if (dv) dv.textContent = Math.round(S.dim * 100) + '%';
+  const kb = document.getElementById('fx-kb');
+  if (kb) kb.checked = S.kenBurns !== false;
+}
+
+function setTransition(k) { if (!FX_TRANSITIONS.includes(k)) return; S.transition = k; syncFxUI(); markDirty(); }
+function setFilter(k) { if (!FX_FILTERS[k]) return; S.filter = k; syncFxUI(); markDirty(); }
+function setDim(v) { S.dim = Math.max(0, Math.min(0.6, Number(v) / 100)); syncFxUI(); markDirty(); }
+function setKenBurns(on) { S.kenBurns = !!on; syncFxUI(); markDirty(); }
 
 function closePanels() {
   document.querySelectorAll('.panel.on').forEach(p => p.classList.remove('on'));
@@ -3366,6 +3343,15 @@ async function exportVideoBlob(onProgress) {
     if (onProgress) onProgress({ pct: Math.min(100, pct), sub: msg });
   };
 
+  // Seek lento (celular) => grava em tempo real; rápido (desktop) => frame-accurate.
+  let seekMs = 0;
+  if (S.mode === 'video' && S.videoEl && globalThis.VVExport?.probeSeekMs) {
+    if (onProgress) onProgress({ pct: 0, sub: 'Testando desempenho do aparelho...' });
+    seekMs = await VVExport.probeSeekMs(S.videoEl);
+  }
+  const useRealtime = seekMs > 60;
+  _skipFrameSharpen = useRealtime;
+
   const canvasStream = rc.captureStream(exportFps);
   let recordStream = canvasStream;
   let recAudioCleanup = null;
@@ -3436,7 +3422,8 @@ async function exportVideoBlob(onProgress) {
   } else if (S.mode === 'images') {
     throw new Error('Módulo js/export-video.js desatualizado. Recarregue a página (Ctrl+Shift+R).');
   } else if (S.mode === 'video' && S.videoEl && globalThis.VVExport) {
-    await VVExport.renderFrameAccurateLoop({
+    const runVideoLoop = useRealtime ? VVExport.renderRealtimeLoop : VVExport.renderFrameAccurateLoop;
+    await runVideoLoop({
       video: S.videoEl,
       rctx, RW, RH,
       totalMs: total,
@@ -3449,6 +3436,7 @@ async function exportVideoBlob(onProgress) {
   }
 
   recRunning = false;
+  _skipFrameSharpen = false;
   rec.stop();
   recordStream.getTracks().forEach(t => t.stop());
   if (recAudioCleanup) recAudioCleanup();
@@ -3458,7 +3446,7 @@ async function exportVideoBlob(onProgress) {
   await new Promise(r => setTimeout(r, 300));
 
   const blob = new Blob(chunks, { type: mime || 'video/webm' });
-  return { blob, ext, mime, rw: RW, rh: RH };
+  return { blob, ext, mime, rw: RW, rh: RH, seekMs, useRealtime };
 }
 
 function beginExportUI() {
@@ -3484,6 +3472,7 @@ function beginExportUI() {
 
 function endExportUI(saved) {
   S.recording = false;
+  _skipFrameSharpen = false;
   document.getElementById('rec-ov').classList.remove('on');
   S.playing  = saved.wasPlaying;
   S.idx      = saved.wasIdx;
@@ -3506,6 +3495,32 @@ function endExportUI(saved) {
   updateDownloadBtn();
 }
 
+const isNativeApp = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+// Android WebView não baixa blob: grava em cache (em pedaços) e abre a folha de compartilhar.
+async function saveAndShareNative(blob, name) {
+  const { Filesystem, Share } = window.Capacitor.Plugins;
+  const CHUNK = 3 * 1024 * 1024; // múltiplo de 3 => base64 concatenável
+  const toB64 = b => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1]);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(b);
+  });
+  await Filesystem.deleteFile({ path: name, directory: 'CACHE' }).catch(() => {});
+  for (let off = 0; off < blob.size; off += CHUNK) {
+    const data = await toB64(blob.slice(off, off + CHUNK));
+    if (off === 0) await Filesystem.writeFile({ path: name, data, directory: 'CACHE' });
+    else await Filesystem.appendFile({ path: name, data, directory: 'CACHE' });
+  }
+  const { uri } = await Filesystem.getUri({ path: name, directory: 'CACHE' });
+  try {
+    await Share.share({ title: 'VersoVivo', text: 'Poesia em movimento', url: uri, dialogTitle: 'Salvar ou enviar vídeo' });
+  } catch (err) {
+    if (!/cancel/i.test(String(err && err.message || err))) throw err; // usuário fechou a folha
+  }
+}
+
 async function startDownload() {
   const btn = document.getElementById('dl-btn');
   const sub = document.getElementById('rec-sub');
@@ -3518,12 +3533,18 @@ async function startDownload() {
       document.getElementById('rec-fill').style.width = pct + '%';
       if (msg) sub.textContent = msg;
     });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `VersoVivo_${new Date().toISOString().slice(0, 10)}.${ext}`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 8000);
+    const fname = `VersoVivo_${new Date().toISOString().slice(0, 10)}.${ext}`;
+    if (isNativeApp()) {
+      sub.textContent = 'Salvando…';
+      await saveAndShareNative(blob, fname);
+    } else {
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = fname;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+    }
   } catch (err) {
     console.error(err);
     alert('Erro ao gerar vídeo:\n' + err.message);
@@ -3534,7 +3555,7 @@ async function startDownload() {
 }
 
 async function shareVideo() {
-  if (typeof navigator.share !== 'function') {
+  if (!isNativeApp() && typeof navigator.share !== 'function') {
     alert('Compartilhamento não disponível neste navegador.');
     return;
   }
@@ -3552,6 +3573,7 @@ async function shareVideo() {
       if (msg) sub.textContent = msg;
     });
     const name = `VersoVivo_${new Date().toISOString().slice(0, 10)}.${ext}`;
+    if (isNativeApp()) { await saveAndShareNative(blob, name); return; }
     const file = new File([blob], name, { type: blob.type });
     const shareData = { files: [file], title: 'VersoVivo', text: 'Poesia em movimento' };
     if (typeof navigator.canShare === 'function' && !navigator.canShare(shareData)) {
@@ -3862,6 +3884,13 @@ const TUTORIAL_STEPS = [
     panel: 'tp',
     title: '23 · Aplicar template',
     text: 'Toque num modelo para aplicar fonte, cor, posição e legibilidade sugeridas. Você pode ajustar tudo depois.',
+  },
+  {
+    screen: 'editor',
+    target: '[data-tut="efeitos"]',
+    prepare: () => { closePanels(); openPanel('fx'); },
+    title: '23b · Efeitos',
+    text: 'Escolha a transição entre imagens (suave, deslizar, zoom, cortina), um filtro de cor e quanto escurecer o fundo para o texto ficar legível.',
   },
   {
     screen: 'editor',

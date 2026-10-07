@@ -1,0 +1,168 @@
+{
+ "file": "qa-results/device/S10-gold-completo.mp4",
+ "probe": {
+  "seconds": 19.95,
+  "bitrateKbps": 18123,
+  "sizeMB": 43.109344482421875,
+  "video": {
+   "codec": "h264",
+   "profile": "High",
+   "pix": "yuv420p",
+   "w": 1080,
+   "h": 1920,
+   "sar": "1:1"
+  },
+  "audio": {
+   "codec": "opus",
+   "hz": 48000,
+   "layout": "stereo"
+  }
+ },
+ "timing": {
+  "frames": 594,
+  "avgFps": 29.768627982510303,
+  "gapMs": {
+   "mean": 33.5924114671163,
+   "p50": 33.36600000000001,
+   "p99": 65.89999999999918,
+   "max": 67.00000000000017,
+   "sd": 7.078310175477822
+  },
+  "stalls200": 0,
+  "stalls100": 0
+ },
+ "defects": {
+  "blackSegments": 0,
+  "freezeSegments": 0
+ },
+ "audio": {
+  "meanDb": -18.7,
+  "maxDb": -2.3,
+  "lufs": -17.5,
+  "truePeak": -2.3,
+  "silences": 0
+ },
+ "ssims": [
+  0.984031,
+  0.98779,
+  0.989216,
+  0.984363,
+  0.979556,
+  0.982626,
+  0.981984,
+  0.98888
+ ],
+ "ssimFrames": [
+  {
+   "t": 3,
+   "ssim": 0.984031,
+   "shiftFrames": 0
+  },
+  {
+   "t": 8,
+   "ssim": 0.98779,
+   "shiftFrames": 1
+  },
+  {
+   "t": 13,
+   "ssim": 0.989216,
+   "shiftFrames": 2
+  },
+  {
+   "t": 18,
+   "ssim": 0.984363,
+   "shiftFrames": 0
+  },
+  {
+   "t": 5.11,
+   "ssim": 0.979556,
+   "shiftFrames": -1
+  },
+  {
+   "t": 5.64,
+   "ssim": 0.982626,
+   "shiftFrames": -1
+  },
+  {
+   "t": 10.11,
+   "ssim": 0.981984,
+   "shiftFrames": -1
+  },
+  {
+   "t": 10.64,
+   "ssim": 0.98888,
+   "shiftFrames": -1
+  }
+ ],
+ "contrast": {
+  "ratio": 6.505814109137134,
+  "textL": 0.9962264670008207,
+  "bgL": 0.11081407329659805,
+  "textPx": 51227,
+  "ringPx": 50640
+ },
+ "score": {
+  "total": 100,
+  "grade": "EXCELENTE",
+  "items": [
+   {
+    "name": "Compatibilidade (H.264/yuv420p/SAR/áudio)",
+    "max": 15,
+    "got": 15,
+    "note": "ok"
+   },
+   {
+    "name": "Resolução exata",
+    "max": 10,
+    "got": 10,
+    "note": "1080x1920"
+   },
+   {
+    "name": "Duração",
+    "max": 10,
+    "got": 10,
+    "note": "19.95s vs 20s (0.3%)"
+   },
+   {
+    "name": "Ritmo de quadros",
+    "max": 15,
+    "got": 15,
+    "note": "29.8 fps · p99 66ms · max 67ms · stalls>200ms: 0"
+   },
+   {
+    "name": "Sem quadros pretos/congelados",
+    "max": 10,
+    "got": 10,
+    "note": "pretos 0 · congelados 0"
+   },
+   {
+    "name": "Fidelidade ao preview (SSIM)",
+    "max": 15,
+    "got": 15,
+    "note": "média 0.9848 · mín 0.9796 (8 quadros)"
+   },
+   {
+    "name": "Legibilidade do texto (contraste)",
+    "max": 10,
+    "got": 10,
+    "note": "6.51:1"
+   },
+   {
+    "name": "Áudio",
+    "max": 10,
+    "got": 10,
+    "note": "LUFS -17.5 · pico -2.3dB · ok"
+   },
+   {
+    "name": "Tamanho/bitrate",
+    "max": 5,
+    "got": 5,
+    "note": "43.1MB · 18123kbps"
+   }
+  ]
+ },
+ "id": "S10-gold-completo",
+ "desc": "TESTE FINAL: 9:16 · 4 fotos · 20 s · transição wipe · filtro quente · escurecer 30% · texto legível · música",
+ "exportSec": 26.901,
+ "errs": []
+}

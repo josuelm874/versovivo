@@ -41,4 +41,17 @@ test.describe('editor', () => {
     await expect(page.locator('#home')).toHaveClass(/on/);
     await expect(page.locator('#editor')).not.toHaveClass(/on/);
   });
+
+  test('painel Efeitos: transição, filtro e escurecer persistem no estado', async ({ page }) => {
+    await openEditorFromHome(page);
+    await page.locator('button.tb', { hasText: 'Efeitos' }).click();
+    await expect(page.locator('#fx')).toHaveClass(/on/);
+    await page.locator('[data-fx-tr="slide"]').click();
+    await page.locator('[data-fx-filter="bw"]').click();
+    await page.locator('#fx-dim').fill('30');
+    const st = await page.evaluate(() => ({ t: S.transition, f: S.filter, d: S.dim }));
+    expect(st).toEqual({ t: 'slide', f: 'bw', d: 0.3 });
+    await expect(page.locator('[data-fx-tr="slide"]')).toHaveClass(/on/);
+    await expect(page.locator('#fx-dim-val')).toHaveText('30%');
+  });
 });

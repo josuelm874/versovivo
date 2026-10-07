@@ -1,0 +1,16 @@
+import { chromium } from '@playwright/test';
+const b = await chromium.launch(); const p = await (await b.newContext({ viewport: { width: 412, height: 892 } })).newPage();
+p.on('dialog', d => d.accept());
+const failed = []; p.on('requestfailed', r => failed.push(r.url().slice(0, 80) + ' :: ' + r.failure()?.errorText));
+p.on('console', m => { if (m.type() === 'error') failed.push('console ' + m.text() + ' @ ' + (m.location().url || '').slice(0, 80)); });
+await p.addInitScript(() => localStorage.setItem('versovivo-skip-boot', '1'));
+await p.goto('http://127.0.0.1:3456/', { waitUntil: 'networkidle' });
+await p.locator('.new-proj').click(); await p.waitForFunction(() => document.getElementById('editor').classList.contains('on'));
+await p.setInputFiles('#img-input', ['test-media/img_id_1015.jpg', 'test-media/img_id_1043.jpg']); await p.waitForFunction(() => S.imgs.length === 2);
+await p.waitForTimeout(2500); await p.evaluate(() => saveProject());
+console.log('antes do reload:', failed.length); failed.length = 0;
+await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+await p.locator('#resume-proj').click(); await p.waitForFunction(() => S.imgs.length === 2, null, { timeout: 30000 }); await p.waitForTimeout(1500);
+console.log(JSON.stringify(failed, null, 1));
+console.log(JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('.tl-slide-thumb')].map(i => [i.complete, i.naturalWidth, i.src.slice(0, 40)]))));
+await b.close();

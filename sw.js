@@ -1,9 +1,23 @@
-const CACHE = 'versovivo-v14';
+const CACHE = 'versovivo-v19';
+const SHELL = ['./', './index.html'];
 const STATIC_ASSETS = [
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './assets/poesia.css',
+  './assets/fonts/fonts.css',
+  './assets/fonts/CormorantGaramond-YrEtImSo.woff2',
+  './assets/fonts/CormorantGaramond-hyjYqXtK.woff2',
+  './assets/fonts/EBGaramond-8QL99U6g.woff2',
+  './assets/fonts/EBGaramond-K5GR1SDk.woff2',
+  './assets/fonts/PlayfairDisplay-PXDTzYgA.woff2',
+  './assets/fonts/PlayfairDisplay-iTXtHA-Q.woff2',
+  './assets/fonts/Sacramento-UG4C0f_Q.woff2',
+  './js/intro.js',
+  './js/intro-data.js',
+  './assets/intro/versovivo.png',
   './js/export-video.js',
   './js/image-enhance.js',
   './js/versovivo.js',
@@ -12,10 +26,21 @@ const STATIC_ASSETS = [
   './assets/tutorial/demo-3.jpg',
 ];
 
+/** Guarda o HTML sem 'redirected' (um redirect, p.ex. /index.html -> /, não pode responder a uma navegação offline). */
+async function cacheShell(cache) {
+  for (const u of SHELL) {
+    try {
+      const r = await fetch(u, { cache: 'reload' });
+      if (!r.ok) continue;
+      await cache.put(u, r.redirected ? new Response(await r.blob(), { status: 200, headers: r.headers }) : r);
+    } catch (_) { /* sem rede na instalação: o shell entra na próxima visita */ }
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
+      .then((cache) => cache.addAll(STATIC_ASSETS).then(() => cacheShell(cache)))
       .then(() => self.skipWaiting())
   );
 });
@@ -47,7 +72,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
         .then((response) => response)
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match('./').then((r) => r || caches.match('./index.html')))
     );
     return;
   }
